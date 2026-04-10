@@ -24,6 +24,9 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
         })),
       )
       setRows(withPending)
+    } catch (e) {
+      enqueueSnackbar((e as Error).message ?? 'Failed to load gallery', { variant: 'error' })
+      setRows([])
     } finally {
       setLoading(false)
     }
@@ -44,7 +47,7 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="card-title">Gallery</h2>
-            <p className="text-sm opacity-70">Buy + claim payouts (mock).</p>
+            <p className="text-sm opacity-70">Buy NFTs and claim payouts on-chain.</p>
           </div>
 
           <button className="btn btn-sm" onClick={() => void refresh()}>
@@ -90,7 +93,7 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
                               }
                               try {
                                 await algoMint.buy_nft({ buyer: activeAddress, asset_id: r.assetId })
-                                enqueueSnackbar('Bought NFT (mock)', { variant: 'success' })
+                                enqueueSnackbar('Bought NFT', { variant: 'success' })
                                 await refresh()
                               } catch (e) {
                                 enqueueSnackbar((e as Error).message, { variant: 'error' })
@@ -111,7 +114,7 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
                               }
                               try {
                                 await algoMint.claim_payout({ address: activeAddress, asset_id: r.assetId })
-                                enqueueSnackbar('Claimed payout (mock)', { variant: 'success' })
+                                enqueueSnackbar('Claimed payout', { variant: 'success' })
                                 await refresh()
                               } catch (e) {
                                 enqueueSnackbar((e as Error).message, { variant: 'error' })
