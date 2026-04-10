@@ -1,74 +1,52 @@
-// src/components/Home.tsx
 import { useWallet } from '@txnlab/use-wallet-react'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
-import Transact from './components/Transact'
-import AppCalls from './components/AppCalls'
+import CreatorPage from './pages/CreatorPage'
+import GalleryPage from './pages/GalleryPage'
 
 interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
-  const [openDemoModal, setOpenDemoModal] = useState<boolean>(false)
-  const [appCallsDemoModal, setAppCallsDemoModal] = useState<boolean>(false)
   const { activeAddress } = useWallet()
+  const [activeTab, setActiveTab] = useState<'creator' | 'gallery'>('creator')
 
   const toggleWalletModal = () => {
     setOpenWalletModal(!openWalletModal)
   }
 
-  const toggleDemoModal = () => {
-    setOpenDemoModal(!openDemoModal)
-  }
-
-  const toggleAppCallsModal = () => {
-    setAppCallsDemoModal(!appCallsDemoModal)
-  }
-
   return (
-    <div className="hero min-h-screen bg-teal-400">
-      <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
-        <div className="max-w-md">
-          <h1 className="text-4xl">
-            Welcome to <div className="font-bold">AlgoKit 🙂</div>
-          </h1>
-          <p className="py-6">
-            This starter has been generated using official AlgoKit React template. Refer to the resource below for next steps.
-          </p>
-
-          <div className="grid">
-            <a
-              data-test-id="getting-started"
-              className="btn btn-primary m-2"
-              target="_blank"
-              href="https://github.com/algorandfoundation/algokit-cli"
-            >
-              Getting started
-            </a>
-
-            <div className="divider" />
-            <button data-test-id="connect-wallet" className="btn m-2" onClick={toggleWalletModal}>
-              Wallet Connection
+    <div className="min-h-screen bg-base-200">
+      <div className="navbar bg-base-100 shadow-sm">
+        <div className="navbar-start">
+          <div className="text-lg font-bold">Algo-Mint</div>
+        </div>
+        <div className="navbar-center">
+          <div className="tabs tabs-boxed">
+            <button className={`tab ${activeTab === 'creator' ? 'tab-active' : ''}`} onClick={() => setActiveTab('creator')}>
+              Creator
             </button>
-
-            {activeAddress && (
-              <button data-test-id="transactions-demo" className="btn m-2" onClick={toggleDemoModal}>
-                Transactions Demo
-              </button>
-            )}
-
-            {activeAddress && (
-              <button data-test-id="appcalls-demo" className="btn m-2" onClick={toggleAppCallsModal}>
-                Contract Interactions Demo
-              </button>
-            )}
+            <button className={`tab ${activeTab === 'gallery' ? 'tab-active' : ''}`} onClick={() => setActiveTab('gallery')}>
+              Gallery
+            </button>
           </div>
-
-          <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
-          <Transact openModal={openDemoModal} setModalState={setOpenDemoModal} />
-          <AppCalls openModal={appCallsDemoModal} setModalState={setAppCallsDemoModal} />
+        </div>
+        <div className="navbar-end">
+          <button data-test-id="connect-wallet" className="btn btn-sm" onClick={toggleWalletModal}>
+            {activeAddress ? 'Wallet connected' : 'Connect wallet'}
+          </button>
         </div>
       </div>
+
+      <div className="max-w-5xl mx-auto p-4">
+        {activeTab === 'creator' ? (
+          <CreatorPage onRequestWalletConnect={toggleWalletModal} />
+        ) : (
+          <GalleryPage onRequestWalletConnect={toggleWalletModal} />
+        )}
+      </div>
+
+      <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
     </div>
   )
 }
