@@ -36,20 +36,6 @@ def algomint_client(
     return client
 
 
-def test_says_hello(algomint_client: AlgomintClient) -> None:
-    result = algomint_client.send.hello(args=("World",))
-    assert result.abi_return == "Hello, World"
-
-
-def test_simulate_says_hello_with_correct_budget_consumed(
-    algomint_client: AlgomintClient,
-) -> None:
-    result = (
-        algomint_client.new_group()
-        .hello(args=("World",))
-        .hello(args=("Jane",))
-        .simulate()
-    )
-    assert result.returns[0].value == "Hello, World"
-    assert result.returns[1].value == "Hello, Jane"
-    assert result.simulate_response["txn-groups"][0]["app-budget-consumed"] < 100
+def test_deploys_algomint_client(algomint_client: AlgomintClient) -> None:
+    assert algomint_client.app_id > 0
+    assert algomint_client.app_address
