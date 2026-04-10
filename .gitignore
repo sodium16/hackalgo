@@ -171,3 +171,10 @@ node_modules
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# AlgoKit / PuyaPy generated artifacts (do not commit)
+projects/hackalgo-contracts/smart_contracts/artifacts/
+projects/hackalgo-contracts/smart_contracts/*.approval.teal
+projects/hackalgo-contracts/smart_contracts/*.clear.teal
+projects/hackalgo-contracts/smart_contracts/*.arc56.json
+projects/hackalgo-contracts/smart_contracts/*.puya.map
