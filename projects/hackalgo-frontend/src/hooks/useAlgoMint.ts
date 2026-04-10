@@ -1,10 +1,17 @@
-import { useCallback, useMemo, useState } from 'react'
-import assetIdsJson from '../assets/asset_ids.json'
+import { AlgorandClient, algo } from '@algorandfoundation/algokit-utils'
+import { useWallet } from '@txnlab/use-wallet-react'
+import algosdk from 'algosdk'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlgomintClient, AlgomintFactory } from '../contracts/Algomint'
+import { getAlgodConfigFromViteEnvironment, getIndexerConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs'
 
 type AlgoMintTerms = {
   nft_count: number
   total_pct_bps: number
   duration_years: number
+  start_quarter: number
+  sale_price_micro_algo: number
+  first_asset_id: number
 }
 
 export type AlgoMintNft = {
@@ -13,10 +20,7 @@ export type AlgoMintNft = {
 }
 
 type PersistedState = {
-  terms: AlgoMintTerms | null
-  creatorAddress: string | null
-  nfts: AlgoMintNft[]
-  pendingPayoutByAssetId: Record<number, number>
+  appId: string | null
 }
 
 const STORAGE_KEY = 'algomint:mock:state:v1'
@@ -41,136 +45,282 @@ function saveState(state: PersistedState) {
 
 function defaultState(): PersistedState {
   return {
-    terms: null,
-    creatorAddress: null,
-    nfts: [],
-    pendingPayoutByAssetId: {},
+    appId: null,
   }
 }
 
-function delay(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms))
-}
-
 export function useAlgoMint() {
+  const { transactionSigner, activeAddress } = useWallet()
   const [state, setState] = useState<PersistedState>(() => loadState())
+  const [termsValue, setTermsValue] = useState<AlgoMintTerms | null>(null)
+  const [creatorAddressValue, setCreatorAddressValue] = useState<string | null>(null)
 
   const persist = useCallback((next: PersistedState) => {
     setState(next)
     saveState(next)
   }, [])
 
-  const terms = state.terms
-  const creatorAddress = state.creatorAddress
+  // Important: Memoize configs to avoid recreating AlgorandClient every render
+  // (which can cause effects to re-run and lock the UI in a re-render loop).
+  const algodConfig = useMemo(() => getAlgodConfigFromViteEnvironment(), [])
+  const indexerConfig = useMemo(() => getIndexerConfigFromViteEnvironment(), [])
+  const algorand = useMemo(() => AlgorandClient.fromConfig({ algodConfig, indexerConfig }), [algodConfig, indexerConfig])
+
+  const getClient = useCallback(async (): Promise<AlgomintClient> => {
+    if (!transactionSigner || !activeAddress) {
+      throw new Error('Wallet not connected')
+    }
+
+    if (state.appId) {
+      return new AlgomintClient({
+        algorand,
+        appId: BigInt(state.appId),
+        defaultSender: activeAddress,
+        defaultSigner: transactionSigner,
+      })
+    }
+
+    // Hackathon convenience: deploy the app from the UI on first use.
+    const factory = new AlgomintFactory({
+      algorand,
+      defaultSender: activeAddress,
+      defaultSigner: transactionSigner,
+    })
+
+    const deployed = await factory.send.create.bare({})
+    const appId = deployed.appClient.appId.toString()
+    persist({ appId })
+
+    return deployed.appClient.clone({ defaultSender: activeAddress, defaultSigner: transactionSigner })
+  }, [activeAddress, algorand, persist, state.appId, transactionSigner])
+
+  const fetchTerms = useCallback(async (): Promise<AlgoMintTerms | null> => {
+    if (!state.appId) return null
+    const client = await getClient()
+    const [creator, totalNfts, totalPctBps, durationYears, startQuarter, salePrice, firstAssetId] =
+      await client.getTerms()
+    return {
+      nft_count: Number(totalNfts),
+      total_pct_bps: Number(totalPctBps),
+      duration_years: Number(durationYears),
+      start_quarter: Number(startQuarter),
+      sale_price_micro_algo: Number(salePrice),
+      first_asset_id: Number(firstAssetId),
+    }
+  }, [getClient, state.appId])
+
+  const refreshTerms = useCallback(async () => {
+    if (!state.appId || !transactionSigner || !activeAddress) {
+      setTermsValue(null)
+      setCreatorAddressValue(null)
+      return
+    }
+    const client = await getClient()
+    const [creator, totalNfts, totalPctBps, durationYears, startQuarter, salePrice, firstAssetId] =
+      await client.getTerms()
+    setCreatorAddressValue(creator)
+    setTermsValue({
+      nft_count: Number(totalNfts),
+      total_pct_bps: Number(totalPctBps),
+      duration_years: Number(durationYears),
+      start_quarter: Number(startQuarter),
+      sale_price_micro_algo: Number(salePrice),
+      first_asset_id: Number(firstAssetId),
+    })
+  }, [activeAddress, getClient, state.appId, transactionSigner])
+
+  useEffect(() => {
+    void refreshTerms()
+  }, [refreshTerms])
 
   const listNfts = useCallback(async (): Promise<AlgoMintNft[]> => {
-    await delay(400)
-    if (state.nfts.length > 0) return state.nfts
+    if (!state.appId) return []
+    const t = termsValue ?? (await fetchTerms())
+    if (!t) return []
 
-    const fallback = (assetIdsJson as { assetIds: number[] }).assetIds.map((assetId) => ({
-      assetId,
-      owner: null,
-    }))
-    return fallback
-  }, [state.nfts])
+    const client = await getClient()
+    const appAddr = client.appAddress
 
-  // ABI-shaped method names/args (mocked for now)
+    const assetIds = Array.from({ length: t.nft_count }).map((_, i) => t.first_asset_id + i)
+    const algod = algorand.client.algod
+
+    const rows = await Promise.all(
+      assetIds.map(async (assetId) => {
+        // Avoid Indexer for responsiveness. We only detect:
+        // - For sale: app holds the NFT
+        // - Owned by you: connected wallet holds the NFT
+        // - Otherwise: owner unknown (treated as not-for-sale)
+        const appInfo = await algod.accountAssetInformation(appAddr, assetId).do().catch(() => null)
+        const appHolds = (appInfo?.assetHolding?.amount ?? 0n) === 1n
+        if (appHolds) return { assetId, owner: null }
+
+        if (activeAddress) {
+          const youInfo = await algod.accountAssetInformation(activeAddress, assetId).do().catch(() => null)
+          const youHold = (youInfo?.assetHolding?.amount ?? 0n) === 1n
+          if (youHold) return { assetId, owner: activeAddress }
+        }
+
+        return { assetId, owner: 'unknown' }
+      }),
+    )
+
+    return rows
+  }, [activeAddress, algorand.client.algod, fetchTerms, getClient, state.appId, termsValue])
+
   const mint_future_nft = useCallback(
-    async (args: { creator: string; nft_count: number; total_pct_bps: number; duration_years: number; mbr_payment?: number }) => {
-      await delay(900)
-
+    async (args: {
+      creator: string
+      nft_count: number
+      total_pct_bps: number
+      duration_years: number
+      start_quarter: number
+      sale_price_micro_algo: number
+      mbr_payment_micro_algo?: number
+    }) => {
       if (args.nft_count <= 0) throw new Error('NFT count must be > 0')
       if (args.total_pct_bps <= 0 || args.total_pct_bps > 10_000) throw new Error('Total % bps must be between 1 and 10000')
       if (args.duration_years <= 0) throw new Error('Duration years must be > 0')
+      if (args.start_quarter <= 0) throw new Error('Start quarter must be > 0')
+      if (args.sale_price_micro_algo <= 0) throw new Error('Sale price must be > 0')
 
-      // Mock: generate unique-ish asset IDs.
-      const base = Date.now() % 1_000_000_000
-      const nfts: AlgoMintNft[] = Array.from({ length: args.nft_count }).map((_, i) => ({
-        assetId: base + i + 1,
-        owner: null,
-      }))
+      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
 
-      const next: PersistedState = {
-        ...state,
-        creatorAddress: args.creator,
-        terms: { nft_count: args.nft_count, total_pct_bps: args.total_pct_bps, duration_years: args.duration_years },
-        nfts,
-        pendingPayoutByAssetId: {},
-      }
-      persist(next)
+      const client = await getClient()
+      const sp = await algorand.client.algod.getTransactionParams().do()
+      const mbrAmount = args.mbr_payment_micro_algo ?? algo(1).microAlgo
+    const mbrPaymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: activeAddress,
+      receiver: client.appAddress,
+      amount: mbrAmount,
+      suggestedParams: sp,
+    })
 
-      return nfts.map((n) => n.assetId)
+      const group = client.newGroup()
+      group.addTransaction(mbrPaymentTxn, transactionSigner)
+      group.mintFutureNft({
+        sender: activeAddress,
+        args: {
+          totalNfts: args.nft_count,
+          totalPctBps: args.total_pct_bps,
+          durationYears: args.duration_years,
+          startQuarter: args.start_quarter,
+          salePrice: args.sale_price_micro_algo,
+          mbrPayment: mbrPaymentTxn,
+        },
+      })
+      await group.send()
+
+      await refreshTerms()
+      const nextTerms = termsValue ?? (await fetchTerms())
+      if (!nextTerms) return []
+      return Array.from({ length: nextTerms.nft_count }).map((_, i) => nextTerms.first_asset_id + i)
     },
-    [persist, state],
+    [activeAddress, algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
   )
 
   const buy_nft = useCallback(
     async (args: { buyer: string; asset_id: number; purchase_payment?: number }) => {
-      await delay(700)
-      const nextNfts = state.nfts.map((n) => (n.assetId === args.asset_id ? { ...n, owner: args.buyer } : n))
-      const next = { ...state, nfts: nextNfts }
-      persist(next)
+      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const client = await getClient()
+      const t = termsValue ?? (await fetchTerms())
+      if (!t) throw new Error('Nothing minted yet')
+
+      const sp = await algorand.client.algod.getTransactionParams().do()
+      const assetId = args.asset_id
+
+      const optInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: activeAddress,
+        receiver: activeAddress,
+        assetIndex: assetId,
+        amount: 0,
+        suggestedParams: sp,
+      })
+
+      const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: activeAddress,
+        receiver: client.appAddress,
+        amount: Number(t.sale_price_micro_algo),
+        suggestedParams: sp,
+      })
+
+      const group = client.newGroup()
+      group.addTransaction(optInTxn, transactionSigner)
+      group.addTransaction(payTxn, transactionSigner)
+      group.buyNft({
+        sender: activeAddress,
+        args: { assetId, optIn: optInTxn, payment: payTxn },
+      })
+      await group.send()
+      await refreshTerms()
     },
-    [persist, state],
+    [activeAddress, algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
   )
 
   const get_pending_payout = useCallback(
     async (args: { asset_id: number; address: string }) => {
-      await delay(250)
-      const nft = state.nfts.find((n) => n.assetId === args.asset_id) ?? null
-      if (!nft || nft.owner !== args.address) return 0
-      return state.pendingPayoutByAssetId[args.asset_id] ?? 0
+      if (!state.appId) return 0
+      const client = await getClient()
+      const pending = await client.getPendingPayout({ args: { assetId: args.asset_id, address: args.address } })
+      return Number(pending)
     },
-    [state.nfts, state.pendingPayoutByAssetId],
+    [getClient, state.appId],
   )
 
   const claim_payout = useCallback(
     async (args: { address: string; asset_id: number }) => {
-      await delay(600)
-      const nft = state.nfts.find((n) => n.assetId === args.asset_id) ?? null
-      if (!nft || nft.owner !== args.address) throw new Error('You do not own this NFT')
-
-      const nextPending = { ...state.pendingPayoutByAssetId }
-      nextPending[args.asset_id] = 0
-      persist({ ...state, pendingPayoutByAssetId: nextPending })
+      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const client = await getClient()
+      await client.send.claimPayout({
+        sender: activeAddress,
+        args: { assetId: args.asset_id },
+      })
     },
-    [persist, state],
+    [activeAddress, getClient, transactionSigner],
   )
 
   const report_income = useCallback(
     async (args: { creator: string; quarter: number; income_amount: number }) => {
-      await delay(800)
-      if (!state.terms || !state.creatorAddress) throw new Error('Nothing minted yet')
-      if (args.creator !== state.creatorAddress) throw new Error('Only the creator can report income')
+      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const client = await getClient()
+      const t = termsValue ?? (await fetchTerms())
+      if (!t) throw new Error('Nothing minted yet')
+      if (!creatorAddressValue || creatorAddressValue !== activeAddress) throw new Error('Only the creator can report income')
       if (args.income_amount <= 0) throw new Error('Income must be > 0')
       if (args.quarter <= 0) throw new Error('Quarter must be > 0')
 
-      const { nft_count, total_pct_bps } = state.terms
-      const totalPayout = (args.income_amount * total_pct_bps) / 10_000
-      const perNft = totalPayout / nft_count
+      const totalPayout = Math.floor((args.income_amount * t.total_pct_bps) / 10_000)
+      const perNft = Math.floor(totalPayout / t.nft_count)
 
-      const nextPending = { ...state.pendingPayoutByAssetId }
-      for (const nft of state.nfts) {
-        if (!nft.owner) continue
-        nextPending[nft.assetId] = (nextPending[nft.assetId] ?? 0) + perNft
-      }
+      const sp = await algorand.client.algod.getTransactionParams().do()
+      const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: activeAddress,
+        receiver: client.appAddress,
+        amount: totalPayout,
+        suggestedParams: sp,
+      })
 
-      persist({ ...state, pendingPayoutByAssetId: nextPending })
+      const group = client.newGroup()
+      group.addTransaction(fundTxn, transactionSigner)
+      group.reportIncome({
+        sender: activeAddress,
+        args: { quarter: args.quarter, incomeAmount: args.income_amount, payoutFunding: fundTxn },
+      })
+      await group.send()
+      await refreshTerms()
+
       return { totalPayout, perNft }
     },
-    [persist, state],
+    [activeAddress, algorand.client.algod, creatorAddressValue, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
   )
 
   const resetMock = useCallback(async () => {
-    await delay(250)
-    const next = defaultState()
-    persist(next)
+    persist(defaultState())
   }, [persist])
 
   const api = useMemo(
     () => ({
-      terms,
-      creatorAddress,
+      terms: termsValue,
+      creatorAddress: creatorAddressValue,
       listNfts,
       mint_future_nft,
       buy_nft,
@@ -179,7 +329,17 @@ export function useAlgoMint() {
       report_income,
       resetMock,
     }),
-    [terms, creatorAddress, listNfts, mint_future_nft, buy_nft, get_pending_payout, claim_payout, report_income, resetMock],
+    [
+      creatorAddressValue,
+      listNfts,
+      mint_future_nft,
+      buy_nft,
+      get_pending_payout,
+      claim_payout,
+      report_income,
+      resetMock,
+      termsValue,
+    ],
   )
 
   return api
