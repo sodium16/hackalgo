@@ -243,7 +243,6 @@ export function useAlgoMint() {
     })
 
       const group = client.newGroup()
-      group.addTransaction(mbrPaymentTxn, signer)
       group.mintFutureNft({
         sender,
         signer,
@@ -297,8 +296,6 @@ export function useAlgoMint() {
       })
 
       const group = client.newGroup()
-      group.addTransaction(optInTxn, signer)
-      group.addTransaction(payTxn, signer)
       group.buyNft({
         sender,
         signer,
@@ -376,7 +373,6 @@ export function useAlgoMint() {
       })
 
       const group = client.newGroup()
-      group.addTransaction(fundTxn, signer)
       group.reportIncome({
         sender,
         signer,
