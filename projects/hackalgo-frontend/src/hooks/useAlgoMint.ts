@@ -325,7 +325,7 @@ export function useAlgoMint() {
       const owns = (hold?.assetHolding?.amount ?? 0n) === 1n
       if (!owns) return 0
 
-      const lastClaimed = (await client.state.box.lastClaimedQuarter.value(args.asset_id)) ?? 0n
+      const lastClaimed = (await client.state.box.lastClaimedQuarter.value(args.asset_id).catch(() => 0n)) ?? 0n
       if (lastClaimed >= lastReportedQuarter) return 0
       return Number(payoutPerNft)
     },
