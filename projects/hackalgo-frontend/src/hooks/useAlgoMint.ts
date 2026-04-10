@@ -1,7 +1,7 @@
 import { AlgorandClient, algo } from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet-react'
 import algosdk from 'algosdk'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlgomintClient, AlgomintFactory } from '../contracts/Algomint'
 import { getAlgodConfigFromViteEnvironment, getIndexerConfigFromViteEnvironment } from '../utils/network/getAlgoClientConfigs'
 
@@ -55,6 +55,14 @@ export function useAlgoMint() {
   const [termsValue, setTermsValue] = useState<AlgoMintTerms | null>(null)
   const [creatorAddressValue, setCreatorAddressValue] = useState<string | null>(null)
 
+  // Wallet objects can be unstable references; store the latest in refs to avoid dependency loops.
+  const activeAddressRef = useRef<string | null>(null)
+  const signerRef = useRef<typeof transactionSigner | null>(null)
+  useEffect(() => {
+    activeAddressRef.current = activeAddress ?? null
+    signerRef.current = transactionSigner ?? null
+  }, [activeAddress, transactionSigner])
+
   const persist = useCallback((next: PersistedState) => {
     setState(next)
     saveState(next)
@@ -67,32 +75,32 @@ export function useAlgoMint() {
   const algorand = useMemo(() => AlgorandClient.fromConfig({ algodConfig, indexerConfig }), [algodConfig, indexerConfig])
 
   const getClient = useCallback(async (): Promise<AlgomintClient> => {
-    if (!transactionSigner || !activeAddress) {
-      throw new Error('Wallet not connected')
-    }
+    const signer = signerRef.current
+    const sender = activeAddressRef.current
+    if (!signer || !sender) throw new Error('Wallet not connected')
 
     if (state.appId) {
       return new AlgomintClient({
         algorand,
         appId: BigInt(state.appId),
-        defaultSender: activeAddress,
-        defaultSigner: transactionSigner,
+        defaultSender: sender,
+        defaultSigner: signer,
       })
     }
 
     // Hackathon convenience: deploy the app from the UI on first use.
     const factory = new AlgomintFactory({
       algorand,
-      defaultSender: activeAddress,
-      defaultSigner: transactionSigner,
+      defaultSender: sender,
+      defaultSigner: signer,
     })
 
     const deployed = await factory.send.create.bare({})
     const appId = deployed.appClient.appId.toString()
     persist({ appId })
 
-    return deployed.appClient.clone({ defaultSender: activeAddress, defaultSigner: transactionSigner })
-  }, [activeAddress, algorand, persist, state.appId, transactionSigner])
+    return deployed.appClient.clone({ defaultSender: sender, defaultSigner: signer })
+  }, [algorand, persist, state.appId])
 
   const fetchTerms = useCallback(async (): Promise<AlgoMintTerms | null> => {
     if (!state.appId) return null
@@ -110,7 +118,9 @@ export function useAlgoMint() {
   }, [getClient, state.appId])
 
   const refreshTerms = useCallback(async () => {
-    if (!state.appId || !transactionSigner || !activeAddress) {
+    const signer = signerRef.current
+    const sender = activeAddressRef.current
+    if (!state.appId || !signer || !sender) {
       setTermsValue(null)
       setCreatorAddressValue(null)
       return
@@ -127,7 +137,7 @@ export function useAlgoMint() {
       sale_price_micro_algo: Number(salePrice),
       first_asset_id: Number(firstAssetId),
     })
-  }, [activeAddress, getClient, state.appId, transactionSigner])
+  }, [getClient, state.appId])
 
   useEffect(() => {
     void refreshTerms()
@@ -154,10 +164,11 @@ export function useAlgoMint() {
         const appHolds = (appInfo?.assetHolding?.amount ?? 0n) === 1n
         if (appHolds) return { assetId, owner: null }
 
-        if (activeAddress) {
-          const youInfo = await algod.accountAssetInformation(activeAddress, assetId).do().catch(() => null)
+        const sender = activeAddressRef.current
+        if (sender) {
+          const youInfo = await algod.accountAssetInformation(sender, assetId).do().catch(() => null)
           const youHold = (youInfo?.assetHolding?.amount ?? 0n) === 1n
-          if (youHold) return { assetId, owner: activeAddress }
+          if (youHold) return { assetId, owner: sender }
         }
 
         return { assetId, owner: 'unknown' }
@@ -165,7 +176,7 @@ export function useAlgoMint() {
     )
 
     return rows
-  }, [activeAddress, algorand.client.algod, fetchTerms, getClient, state.appId, termsValue])
+  }, [algorand.client.algod, fetchTerms, getClient, state.appId, termsValue])
 
   const mint_future_nft = useCallback(
     async (args: {
@@ -183,22 +194,25 @@ export function useAlgoMint() {
       if (args.start_quarter <= 0) throw new Error('Start quarter must be > 0')
       if (args.sale_price_micro_algo <= 0) throw new Error('Sale price must be > 0')
 
-      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const signer = signerRef.current
+      const sender = activeAddressRef.current
+      if (!signer || !sender) throw new Error('Wallet not connected')
 
       const client = await getClient()
       const sp = await algorand.client.algod.getTransactionParams().do()
       const mbrAmount = args.mbr_payment_micro_algo ?? algo(1).microAlgo
     const mbrPaymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender: activeAddress,
+      sender,
       receiver: client.appAddress,
       amount: mbrAmount,
       suggestedParams: sp,
     })
 
       const group = client.newGroup()
-      group.addTransaction(mbrPaymentTxn, transactionSigner)
+      group.addTransaction(mbrPaymentTxn, signer)
       group.mintFutureNft({
-        sender: activeAddress,
+        sender,
+        signer,
         args: {
           totalNfts: args.nft_count,
           totalPctBps: args.total_pct_bps,
@@ -215,12 +229,14 @@ export function useAlgoMint() {
       if (!nextTerms) return []
       return Array.from({ length: nextTerms.nft_count }).map((_, i) => nextTerms.first_asset_id + i)
     },
-    [activeAddress, algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
+    [algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue],
   )
 
   const buy_nft = useCallback(
     async (args: { buyer: string; asset_id: number; purchase_payment?: number }) => {
-      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const signer = signerRef.current
+      const sender = activeAddressRef.current
+      if (!signer || !sender) throw new Error('Wallet not connected')
       const client = await getClient()
       const t = termsValue ?? (await fetchTerms())
       if (!t) throw new Error('Nothing minted yet')
@@ -229,31 +245,32 @@ export function useAlgoMint() {
       const assetId = args.asset_id
 
       const optInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        sender: activeAddress,
-        receiver: activeAddress,
+        sender,
+        receiver: sender,
         assetIndex: assetId,
         amount: 0,
         suggestedParams: sp,
       })
 
       const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: activeAddress,
+        sender,
         receiver: client.appAddress,
         amount: Number(t.sale_price_micro_algo),
         suggestedParams: sp,
       })
 
       const group = client.newGroup()
-      group.addTransaction(optInTxn, transactionSigner)
-      group.addTransaction(payTxn, transactionSigner)
+      group.addTransaction(optInTxn, signer)
+      group.addTransaction(payTxn, signer)
       group.buyNft({
-        sender: activeAddress,
+        sender,
+        signer,
         args: { assetId, optIn: optInTxn, payment: payTxn },
       })
       await group.send()
       await refreshTerms()
     },
-    [activeAddress, algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
+    [algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue],
   )
 
   const get_pending_payout = useCallback(
@@ -268,23 +285,28 @@ export function useAlgoMint() {
 
   const claim_payout = useCallback(
     async (args: { address: string; asset_id: number }) => {
-      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const signer = signerRef.current
+      const sender = activeAddressRef.current
+      if (!signer || !sender) throw new Error('Wallet not connected')
       const client = await getClient()
       await client.send.claimPayout({
-        sender: activeAddress,
+        sender,
+        signer,
         args: { assetId: args.asset_id },
       })
     },
-    [activeAddress, getClient, transactionSigner],
+    [getClient],
   )
 
   const report_income = useCallback(
     async (args: { creator: string; quarter: number; income_amount: number }) => {
-      if (!transactionSigner || !activeAddress) throw new Error('Wallet not connected')
+      const signer = signerRef.current
+      const sender = activeAddressRef.current
+      if (!signer || !sender) throw new Error('Wallet not connected')
       const client = await getClient()
       const t = termsValue ?? (await fetchTerms())
       if (!t) throw new Error('Nothing minted yet')
-      if (!creatorAddressValue || creatorAddressValue !== activeAddress) throw new Error('Only the creator can report income')
+      if (!creatorAddressValue || creatorAddressValue !== sender) throw new Error('Only the creator can report income')
       if (args.income_amount <= 0) throw new Error('Income must be > 0')
       if (args.quarter <= 0) throw new Error('Quarter must be > 0')
 
@@ -293,16 +315,17 @@ export function useAlgoMint() {
 
       const sp = await algorand.client.algod.getTransactionParams().do()
       const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: activeAddress,
+        sender,
         receiver: client.appAddress,
         amount: totalPayout,
         suggestedParams: sp,
       })
 
       const group = client.newGroup()
-      group.addTransaction(fundTxn, transactionSigner)
+      group.addTransaction(fundTxn, signer)
       group.reportIncome({
-        sender: activeAddress,
+        sender,
+        signer,
         args: { quarter: args.quarter, incomeAmount: args.income_amount, payoutFunding: fundTxn },
       })
       await group.send()
@@ -310,7 +333,7 @@ export function useAlgoMint() {
 
       return { totalPayout, perNft }
     },
-    [activeAddress, algorand.client.algod, creatorAddressValue, fetchTerms, getClient, refreshTerms, termsValue, transactionSigner],
+    [algorand.client.algod, creatorAddressValue, fetchTerms, getClient, refreshTerms, termsValue],
   )
 
   const resetMock = useCallback(async () => {

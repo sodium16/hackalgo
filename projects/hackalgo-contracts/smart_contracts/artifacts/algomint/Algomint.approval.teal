@@ -3,18 +3,18 @@
 
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
-    intcblock 0 1 8 10
-    bytecblock "initialized" "last_reported_quarter" "payout_per_nft" "ma_" "total_nfts" "total_pct_bps" "pct_per_nft_bps" "creator" "duration_years" "start_quarter" "last_reported_income" "lc_"
+    intcblock 0 1 8 10000
+    bytecblock "initialized" "last_reported_quarter" "total_nfts" "total_pct_bps" "sale_price" "payout_per_nft" "creator" "ma_" "duration_years" "start_quarter" "first_asset_id" "pct_per_nft_bps" "last_reported_income" "lc_" 0x151f7c75
     txn ApplicationID
     bnz main_after_if_else@2
     // smart_contracts/algomint/contract.py:8
     // self.total_nfts = GlobalState(UInt64(0))
-    bytec 4 // "total_nfts"
+    bytec_2 // "total_nfts"
     intc_0 // 0
     app_global_put
     // smart_contracts/algomint/contract.py:9
     // self.total_pct_bps = GlobalState(UInt64(0))
-    bytec 5 // "total_pct_bps"
+    bytec_3 // "total_pct_bps"
     intc_0 // 0
     app_global_put
     // smart_contracts/algomint/contract.py:10
@@ -28,26 +28,36 @@ main:
     intc_0 // 0
     app_global_put
     // smart_contracts/algomint/contract.py:12
-    // self.pct_per_nft_bps = GlobalState(UInt64(0))
-    bytec 6 // "pct_per_nft_bps"
+    // self.sale_price = GlobalState(UInt64(0))
+    bytec 4 // "sale_price"
     intc_0 // 0
     app_global_put
     // smart_contracts/algomint/contract.py:13
+    // self.first_asset_id = GlobalState(UInt64(0))
+    bytec 10 // "first_asset_id"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/algomint/contract.py:14
+    // self.pct_per_nft_bps = GlobalState(UInt64(0))
+    bytec 11 // "pct_per_nft_bps"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/algomint/contract.py:15
     // self.last_reported_quarter = GlobalState(UInt64(0))
     bytec_1 // "last_reported_quarter"
     intc_0 // 0
     app_global_put
-    // smart_contracts/algomint/contract.py:14
-    // self.last_reported_income = GlobalState(UInt64(0))
-    bytec 10 // "last_reported_income"
-    intc_0 // 0
-    app_global_put
-    // smart_contracts/algomint/contract.py:15
-    // self.payout_per_nft = GlobalState(UInt64(0))
-    bytec_2 // "payout_per_nft"
-    intc_0 // 0
-    app_global_put
     // smart_contracts/algomint/contract.py:16
+    // self.last_reported_income = GlobalState(UInt64(0))
+    bytec 12 // "last_reported_income"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/algomint/contract.py:17
+    // self.payout_per_nft = GlobalState(UInt64(0))
+    bytec 5 // "payout_per_nft"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/algomint/contract.py:18
     // self.initialized = GlobalState(False)
     bytec_0 // "initialized"
     intc_0 // 0
@@ -57,18 +67,18 @@ main_after_if_else@2:
     // smart_contracts/algomint/contract.py:4
     // class Algomint(ARC4Contract):
     txn NumAppArgs
-    bz main___algopy_default_create@14
+    bz main___algopy_default_create@15
     txn OnCompletion
     !
     assert
     txn ApplicationID
     assert
-    pushbytess 0xa96520a3 0x747c5aa9 0x35bccc8b 0x945f1777 0x57377178 // method "mint_future_nft(pay)void", method "buy_nft(uint64,pay)void", method "report_income(uint64,uint64)void", method "claim_payout(uint64)void", method "get_pending_payout(uint64,address)uint64"
+    pushbytess 0xac6e1a04 0xdd980e6d 0xbd8dc97e 0x945f1777 0x57377178 0xbefc16c5 // method "mint_future_nft(uint64,uint64,uint64,uint64,uint64,pay)void", method "buy_nft(uint64,axfer,pay)void", method "report_income(uint64,uint64,pay)void", method "claim_payout(uint64)void", method "get_pending_payout(uint64,address)uint64", method "get_terms()(address,uint64,uint64,uint64,uint64,uint64,uint64)"
     txna ApplicationArgs 0
-    match mint_future_nft buy_nft report_income claim_payout get_pending_payout
+    match mint_future_nft buy_nft report_income claim_payout get_pending_payout get_terms
     err
 
-main___algopy_default_create@14:
+main___algopy_default_create@15:
     txn OnCompletion
     !
     txn ApplicationID
@@ -79,201 +89,39 @@ main___algopy_default_create@14:
 
 // smart_contracts.algomint.contract.Algomint.mint_future_nft[routing]() -> void:
 mint_future_nft:
-    // smart_contracts/algomint/contract.py:23
-    // @arc4.abimethod
-    txn GroupIndex
-    intc_1 // 1
-    -
-    dup
-    gtxns TypeEnum
-    intc_1 // pay
-    ==
-    assert // transaction type is pay
+    pushbytes ""
     // smart_contracts/algomint/contract.py:25
-    // assert not self.initialized.value
-    intc_0 // 0
-    bytec_0 // "initialized"
-    app_global_get_ex
-    assert // check self.initialized exists
-    !
-    assert
-    // smart_contracts/algomint/contract.py:26
-    // assert axfer.sender == Txn.sender
-    dup
-    gtxns Sender
-    txn Sender
-    ==
-    assert
-    // smart_contracts/algomint/contract.py:27
-    // assert axfer.receiver == Global.current_application_address
-    dup
-    gtxns Receiver
-    global CurrentApplicationAddress
-    ==
-    assert
-    // smart_contracts/algomint/contract.py:28
-    // assert axfer.amount >= UInt64(200_000)
-    gtxns Amount
-    pushint 200000
-    >=
-    assert
-    // smart_contracts/algomint/contract.py:30
-    // self.creator.value = Txn.sender
-    bytec 7 // "creator"
-    txn Sender
-    app_global_put
-    // smart_contracts/algomint/contract.py:31
-    // self.total_nfts.value = UInt64(10)
-    bytec 4 // "total_nfts"
-    intc_3 // 10
-    app_global_put
-    // smart_contracts/algomint/contract.py:32
-    // self.total_pct_bps.value = UInt64(500)
-    bytec 5 // "total_pct_bps"
-    pushint 500
-    app_global_put
-    // smart_contracts/algomint/contract.py:33
-    // self.duration_years.value = UInt64(3)
-    bytec 8 // "duration_years"
-    pushint 3
-    app_global_put
-    // smart_contracts/algomint/contract.py:34
-    // self.start_quarter.value = UInt64(20261)
-    bytec 9 // "start_quarter"
-    pushint 20261
-    app_global_put
-    // smart_contracts/algomint/contract.py:35
-    // self.pct_per_nft_bps.value = self.total_pct_bps.value // self.total_nfts.value
-    intc_0 // 0
-    bytec 5 // "total_pct_bps"
-    app_global_get_ex
-    assert // check self.total_pct_bps exists
-    intc_0 // 0
-    bytec 4 // "total_nfts"
-    app_global_get_ex
-    assert // check self.total_nfts exists
-    /
-    bytec 6 // "pct_per_nft_bps"
-    swap
-    app_global_put
-    // smart_contracts/algomint/contract.py:36
-    // self.initialized.value = True
-    bytec_0 // "initialized"
-    intc_1 // 1
-    app_global_put
-    // smart_contracts/algomint/contract.py:38-39
-    // # Mint a fixed series of ARC-19 style NFTs from the app account.
-    // for _idx in urange(10):
-    intc_0 // 0
-
-mint_future_nft_for_header@2:
-    // smart_contracts/algomint/contract.py:38-39
-    // # Mint a fixed series of ARC-19 style NFTs from the app account.
-    // for _idx in urange(10):
-    dup
-    intc_3 // 10
-    <
-    bz mint_future_nft_after_for@6
-    // smart_contracts/algomint/contract.py:40-51
-    // created = itxn.AssetConfig(
-    //     total=1,
-    //     decimals=0,
-    //     default_frozen=False,
-    //     asset_name=b"Future Earning NFT",
-    //     unit_name=b"FENFT",
-    //     # ARC-19 template URL (CID sourced from reserve account by clients).
-    //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
-    //     manager=Global.current_application_address,
-    //     reserve=Global.current_application_address,
-    //     fee=0,
-    // ).submit()
-    itxn_begin
-    // smart_contracts/algomint/contract.py:48
-    // manager=Global.current_application_address,
-    global CurrentApplicationAddress
-    // smart_contracts/algomint/contract.py:49
-    // reserve=Global.current_application_address,
-    dup
-    itxn_field ConfigAssetReserve
-    itxn_field ConfigAssetManager
-    // smart_contracts/algomint/contract.py:46-47
-    // # ARC-19 template URL (CID sourced from reserve account by clients).
-    // url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
-    pushbytes 0x74656d706c6174652d697066733a2f2f7b697066736369643a313a7261773a726573657276653a736861322d3235367d
-    itxn_field ConfigAssetURL
-    // smart_contracts/algomint/contract.py:45
-    // unit_name=b"FENFT",
-    pushbytes 0x46454e4654
-    itxn_field ConfigAssetUnitName
-    // smart_contracts/algomint/contract.py:44
-    // asset_name=b"Future Earning NFT",
-    pushbytes 0x467574757265204561726e696e67204e4654
-    itxn_field ConfigAssetName
-    // smart_contracts/algomint/contract.py:43
-    // default_frozen=False,
-    intc_0 // 0
-    itxn_field ConfigAssetDefaultFrozen
-    // smart_contracts/algomint/contract.py:42
-    // decimals=0,
-    intc_0 // 0
-    itxn_field ConfigAssetDecimals
-    // smart_contracts/algomint/contract.py:41
-    // total=1,
-    intc_1 // 1
-    itxn_field ConfigAssetTotal
-    // smart_contracts/algomint/contract.py:40
-    // created = itxn.AssetConfig(
-    pushint 3 // acfg
-    itxn_field TypeEnum
-    // smart_contracts/algomint/contract.py:50
-    // fee=0,
-    intc_0 // 0
-    itxn_field Fee
-    // smart_contracts/algomint/contract.py:40-51
-    // created = itxn.AssetConfig(
-    //     total=1,
-    //     decimals=0,
-    //     default_frozen=False,
-    //     asset_name=b"Future Earning NFT",
-    //     unit_name=b"FENFT",
-    //     # ARC-19 template URL (CID sourced from reserve account by clients).
-    //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
-    //     manager=Global.current_application_address,
-    //     reserve=Global.current_application_address,
-    //     fee=0,
-    // ).submit()
-    itxn_submit
-    itxn CreatedAssetID
-    // smart_contracts/algomint/contract.py:52
-    // self.minted_assets[created.created_asset.id] = UInt64(1)
-    itob
-    bytec_3 // "ma_"
-    swap
-    concat
-    intc_1 // 1
-    itob
-    box_put
-    // smart_contracts/algomint/contract.py:38-39
-    // # Mint a fixed series of ARC-19 style NFTs from the app account.
-    // for _idx in urange(10):
-    dup
-    intc_1 // 1
-    +
-    bury 1
-    b mint_future_nft_for_header@2
-
-mint_future_nft_after_for@6:
-    // smart_contracts/algomint/contract.py:23
-    // @arc4.abimethod
-    intc_1 // 1
-    return
-
-
-// smart_contracts.algomint.contract.Algomint.buy_nft[routing]() -> void:
-buy_nft:
-    // smart_contracts/algomint/contract.py:54
     // @arc4.abimethod
     txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 3
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 4
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 5
     dup
     len
     intc_2 // 8
@@ -288,22 +136,274 @@ buy_nft:
     intc_1 // pay
     ==
     assert // transaction type is pay
-    // smart_contracts/algomint/contract.py:56
+    // smart_contracts/algomint/contract.py:35
+    // assert not self.initialized.value
+    intc_0 // 0
+    bytec_0 // "initialized"
+    app_global_get_ex
+    assert // check self.initialized exists
+    !
+    assert
+    // smart_contracts/algomint/contract.py:36
+    // assert total_nfts > UInt64(0)
+    dig 5
+    assert
+    // smart_contracts/algomint/contract.py:37
+    // assert total_pct_bps > UInt64(0)
+    dig 4
+    assert
+    // smart_contracts/algomint/contract.py:38
+    // assert total_pct_bps <= UInt64(10_000)
+    dig 4
+    intc_3 // 10000
+    <=
+    assert
+    // smart_contracts/algomint/contract.py:39
+    // assert duration_years > UInt64(0)
+    dig 3
+    assert
+    // smart_contracts/algomint/contract.py:40
+    // assert start_quarter > UInt64(0)
+    dig 2
+    assert
+    // smart_contracts/algomint/contract.py:41
+    // assert sale_price > UInt64(0)
+    dig 1
+    assert
+    // smart_contracts/algomint/contract.py:43
+    // assert mbr_payment.sender == Txn.sender
+    dup
+    gtxns Sender
+    txn Sender
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:44
+    // assert mbr_payment.receiver == Global.current_application_address
+    dup
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:45-46
+    // # NOTE: Exact MBR depends on protocol params; require a sensible minimum for demo.
+    // assert mbr_payment.amount >= UInt64(1_000_000)
+    gtxns Amount
+    pushint 1000000
+    >=
+    assert
+    // smart_contracts/algomint/contract.py:48
+    // self.creator.value = Txn.sender
+    bytec 6 // "creator"
+    txn Sender
+    app_global_put
+    // smart_contracts/algomint/contract.py:49
+    // self.total_nfts.value = total_nfts
+    bytec_2 // "total_nfts"
+    uncover 5
+    app_global_put
+    // smart_contracts/algomint/contract.py:50
+    // self.total_pct_bps.value = total_pct_bps
+    bytec_3 // "total_pct_bps"
+    uncover 4
+    app_global_put
+    // smart_contracts/algomint/contract.py:51
+    // self.duration_years.value = duration_years
+    bytec 8 // "duration_years"
+    uncover 3
+    app_global_put
+    // smart_contracts/algomint/contract.py:52
+    // self.start_quarter.value = start_quarter
+    bytec 9 // "start_quarter"
+    uncover 2
+    app_global_put
+    // smart_contracts/algomint/contract.py:53
+    // self.sale_price.value = sale_price
+    bytec 4 // "sale_price"
+    swap
+    app_global_put
+    // smart_contracts/algomint/contract.py:54
+    // self.pct_per_nft_bps.value = self.total_pct_bps.value // self.total_nfts.value
+    intc_0 // 0
+    bytec_3 // "total_pct_bps"
+    app_global_get_ex
+    assert // check self.total_pct_bps exists
+    intc_0 // 0
+    bytec_2 // "total_nfts"
+    app_global_get_ex
+    assert // check self.total_nfts exists
+    /
+    bytec 11 // "pct_per_nft_bps"
+    swap
+    app_global_put
+    // smart_contracts/algomint/contract.py:55
+    // self.initialized.value = True
+    bytec_0 // "initialized"
+    intc_1 // 1
+    app_global_put
+    // smart_contracts/algomint/contract.py:57-58
+    // # Mint a fixed series of ARC-19 style NFTs from the app account.
+    // for idx in urange(total_nfts):
+    intc_0 // 0
+
+mint_future_nft_for_header@2:
+    // smart_contracts/algomint/contract.py:57-58
+    // # Mint a fixed series of ARC-19 style NFTs from the app account.
+    // for idx in urange(total_nfts):
+    dup
+    dig 2
+    <
+    bz mint_future_nft_after_for@8
+    // smart_contracts/algomint/contract.py:59-70
+    // created = itxn.AssetConfig(
+    //     total=1,
+    //     decimals=0,
+    //     default_frozen=False,
+    //     asset_name=b"Future Earning NFT",
+    //     unit_name=b"FENFT",
+    //     # ARC-19 template URL (CID sourced from reserve account by clients).
+    //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
+    //     manager=Global.current_application_address,
+    //     reserve=Global.current_application_address,
+    //     fee=0,
+    // ).submit()
+    itxn_begin
+    // smart_contracts/algomint/contract.py:67
+    // manager=Global.current_application_address,
+    global CurrentApplicationAddress
+    // smart_contracts/algomint/contract.py:68
+    // reserve=Global.current_application_address,
+    dup
+    itxn_field ConfigAssetReserve
+    itxn_field ConfigAssetManager
+    // smart_contracts/algomint/contract.py:65-66
+    // # ARC-19 template URL (CID sourced from reserve account by clients).
+    // url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
+    pushbytes 0x74656d706c6174652d697066733a2f2f7b697066736369643a313a7261773a726573657276653a736861322d3235367d
+    itxn_field ConfigAssetURL
+    // smart_contracts/algomint/contract.py:64
+    // unit_name=b"FENFT",
+    pushbytes 0x46454e4654
+    itxn_field ConfigAssetUnitName
+    // smart_contracts/algomint/contract.py:63
+    // asset_name=b"Future Earning NFT",
+    pushbytes 0x467574757265204561726e696e67204e4654
+    itxn_field ConfigAssetName
+    // smart_contracts/algomint/contract.py:62
+    // default_frozen=False,
+    intc_0 // 0
+    itxn_field ConfigAssetDefaultFrozen
+    // smart_contracts/algomint/contract.py:61
+    // decimals=0,
+    intc_0 // 0
+    itxn_field ConfigAssetDecimals
+    // smart_contracts/algomint/contract.py:60
+    // total=1,
+    intc_1 // 1
+    itxn_field ConfigAssetTotal
+    // smart_contracts/algomint/contract.py:59
+    // created = itxn.AssetConfig(
+    pushint 3 // acfg
+    itxn_field TypeEnum
+    // smart_contracts/algomint/contract.py:69
+    // fee=0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/algomint/contract.py:59-70
+    // created = itxn.AssetConfig(
+    //     total=1,
+    //     decimals=0,
+    //     default_frozen=False,
+    //     asset_name=b"Future Earning NFT",
+    //     unit_name=b"FENFT",
+    //     # ARC-19 template URL (CID sourced from reserve account by clients).
+    //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
+    //     manager=Global.current_application_address,
+    //     reserve=Global.current_application_address,
+    //     fee=0,
+    // ).submit()
+    itxn_submit
+    itxn CreatedAssetID
+    bury 3
+    // smart_contracts/algomint/contract.py:71
+    // if idx == UInt64(0):
+    dup
+    bnz mint_future_nft_after_if_else@6
+    // smart_contracts/algomint/contract.py:72
+    // self.first_asset_id.value = created.created_asset.id
+    bytec 10 // "first_asset_id"
+    dig 3
+    app_global_put
+
+mint_future_nft_after_if_else@6:
+    // smart_contracts/algomint/contract.py:73
+    // self.minted_assets[created.created_asset.id] = UInt64(1)
+    dig 2
+    itob
+    bytec 7 // "ma_"
+    swap
+    concat
+    intc_1 // 1
+    itob
+    box_put
+    // smart_contracts/algomint/contract.py:57-58
+    // # Mint a fixed series of ARC-19 style NFTs from the app account.
+    // for idx in urange(total_nfts):
+    dup
+    intc_1 // 1
+    +
+    bury 1
+    b mint_future_nft_for_header@2
+
+mint_future_nft_after_for@8:
+    // smart_contracts/algomint/contract.py:25
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// smart_contracts.algomint.contract.Algomint.buy_nft[routing]() -> void:
+buy_nft:
+    // smart_contracts/algomint/contract.py:75
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txn GroupIndex
+    pushint 2
+    -
+    dup
+    gtxns TypeEnum
+    pushint 4 // axfer
+    ==
+    assert // transaction type is axfer
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // smart_contracts/algomint/contract.py:82
     // assert self.initialized.value
     intc_0 // 0
     bytec_0 // "initialized"
     app_global_get_ex
     assert // check self.initialized exists
     assert
-    // smart_contracts/algomint/contract.py:57
+    // smart_contracts/algomint/contract.py:83
     // assert asset_id > UInt64(0)
-    dig 1
+    dig 2
     assert
-    // smart_contracts/algomint/contract.py:58
+    // smart_contracts/algomint/contract.py:84
     // assert self.minted_assets.get(asset_id, default=UInt64(0)) == UInt64(1)
-    dig 1
+    dig 2
     itob
-    bytec_3 // "ma_"
+    bytec 7 // "ma_"
     swap
     concat
     box_get
@@ -316,40 +416,72 @@ buy_nft:
     intc_1 // 1
     ==
     assert
-    // smart_contracts/algomint/contract.py:59
-    // assert axfer.sender == Txn.sender
+    // smart_contracts/algomint/contract.py:88-89
+    // # Ensure buyer has opted-in in the same group.
+    // assert opt_in.sender == Txn.sender
+    dig 1
+    gtxns Sender
+    txn Sender
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:90
+    // assert opt_in.asset_receiver == Txn.sender
+    dig 1
+    gtxns AssetReceiver
+    txn Sender
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:91
+    // assert opt_in.xfer_asset.id == asset.id
+    dig 1
+    gtxns XferAsset
+    dig 3
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:92
+    // assert opt_in.asset_amount == UInt64(0)
+    swap
+    gtxns AssetAmount
+    !
+    assert
+    // smart_contracts/algomint/contract.py:94
+    // assert payment.sender == Txn.sender
     dup
     gtxns Sender
     txn Sender
     ==
     assert
-    // smart_contracts/algomint/contract.py:60
-    // assert axfer.amount > UInt64(0)
+    // smart_contracts/algomint/contract.py:95
+    // assert payment.receiver == Global.current_application_address
     dup
-    gtxns Amount
-    dup
-    assert
-    // smart_contracts/algomint/contract.py:61
-    // assert axfer.receiver == Global.current_application_address
-    swap
     gtxns Receiver
     global CurrentApplicationAddress
     ==
     assert
-    // smart_contracts/algomint/contract.py:64
+    // smart_contracts/algomint/contract.py:96
+    // assert payment.amount == self.sale_price.value
+    gtxns Amount
+    intc_0 // 0
+    bytec 4 // "sale_price"
+    app_global_get_ex
+    assert // check self.sale_price exists
+    dig 1
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:98
     // app_balance, app_opted = op.AssetHoldingGet.asset_balance(Global.current_application_address, asset)
     global CurrentApplicationAddress
     dig 2
     asset_holding_get AssetBalance
-    // smart_contracts/algomint/contract.py:65
+    // smart_contracts/algomint/contract.py:99
     // assert app_opted
     assert
-    // smart_contracts/algomint/contract.py:66
+    // smart_contracts/algomint/contract.py:100
     // assert app_balance == UInt64(1)
     intc_1 // 1
     ==
     assert
-    // smart_contracts/algomint/contract.py:68-74
+    // smart_contracts/algomint/contract.py:102-108
     // # Transfer NFT to investor and forward payment to creator.
     // itxn.AssetTransfer(
     //     xfer_asset=asset,
@@ -358,26 +490,26 @@ buy_nft:
     //     fee=0,
     // ).submit()
     itxn_begin
-    // smart_contracts/algomint/contract.py:71
+    // smart_contracts/algomint/contract.py:105
     // asset_receiver=Txn.sender,
     txn Sender
-    // smart_contracts/algomint/contract.py:72
+    // smart_contracts/algomint/contract.py:106
     // asset_amount=UInt64(1),
     intc_1 // 1
     itxn_field AssetAmount
     itxn_field AssetReceiver
     swap
     itxn_field XferAsset
-    // smart_contracts/algomint/contract.py:68-69
+    // smart_contracts/algomint/contract.py:102-103
     // # Transfer NFT to investor and forward payment to creator.
     // itxn.AssetTransfer(
     pushint 4 // axfer
     itxn_field TypeEnum
-    // smart_contracts/algomint/contract.py:73
+    // smart_contracts/algomint/contract.py:107
     // fee=0,
     intc_0 // 0
     itxn_field Fee
-    // smart_contracts/algomint/contract.py:68-74
+    // smart_contracts/algomint/contract.py:102-108
     // # Transfer NFT to investor and forward payment to creator.
     // itxn.AssetTransfer(
     //     xfer_asset=asset,
@@ -386,37 +518,37 @@ buy_nft:
     //     fee=0,
     // ).submit()
     itxn_submit
-    // smart_contracts/algomint/contract.py:75-79
+    // smart_contracts/algomint/contract.py:109-113
     // itxn.Payment(
     //     receiver=self.creator.value,
-    //     amount=axfer.amount,
+    //     amount=payment.amount,
     //     fee=0,
     // ).submit()
     itxn_begin
-    // smart_contracts/algomint/contract.py:76
+    // smart_contracts/algomint/contract.py:110
     // receiver=self.creator.value,
     intc_0 // 0
-    bytec 7 // "creator"
+    bytec 6 // "creator"
     app_global_get_ex
     assert // check self.creator exists
     itxn_field Receiver
     itxn_field Amount
-    // smart_contracts/algomint/contract.py:75
+    // smart_contracts/algomint/contract.py:109
     // itxn.Payment(
     intc_1 // pay
     itxn_field TypeEnum
-    // smart_contracts/algomint/contract.py:78
+    // smart_contracts/algomint/contract.py:112
     // fee=0,
     intc_0 // 0
     itxn_field Fee
-    // smart_contracts/algomint/contract.py:75-79
+    // smart_contracts/algomint/contract.py:109-113
     // itxn.Payment(
     //     receiver=self.creator.value,
-    //     amount=axfer.amount,
+    //     amount=payment.amount,
     //     fee=0,
     // ).submit()
     itxn_submit
-    // smart_contracts/algomint/contract.py:54
+    // smart_contracts/algomint/contract.py:75
     // @arc4.abimethod
     intc_1 // 1
     return
@@ -424,7 +556,7 @@ buy_nft:
 
 // smart_contracts.algomint.contract.Algomint.report_income[routing]() -> void:
 report_income:
-    // smart_contracts/algomint/contract.py:81
+    // smart_contracts/algomint/contract.py:115
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
@@ -440,54 +572,100 @@ report_income:
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
-    // smart_contracts/algomint/contract.py:83
+    txn GroupIndex
+    intc_1 // 1
+    -
+    dup
+    gtxns TypeEnum
+    intc_1 // pay
+    ==
+    assert // transaction type is pay
+    // smart_contracts/algomint/contract.py:119
     // assert self.initialized.value
     intc_0 // 0
     bytec_0 // "initialized"
     app_global_get_ex
     assert // check self.initialized exists
     assert
-    // smart_contracts/algomint/contract.py:84
+    // smart_contracts/algomint/contract.py:120
     // assert Txn.sender == self.creator.value
     txn Sender
     intc_0 // 0
-    bytec 7 // "creator"
+    bytec 6 // "creator"
     app_global_get_ex
     assert // check self.creator exists
     ==
     assert
-    // smart_contracts/algomint/contract.py:85
+    // smart_contracts/algomint/contract.py:121
     // assert quarter > self.last_reported_quarter.value
     intc_0 // 0
     bytec_1 // "last_reported_quarter"
     app_global_get_ex
     assert // check self.last_reported_quarter exists
-    dig 2
+    dig 3
     <
     assert
-    // smart_contracts/algomint/contract.py:87
+    // smart_contracts/algomint/contract.py:122
+    // assert income_amount > UInt64(0)
+    dig 1
+    assert
+    // smart_contracts/algomint/contract.py:124
+    // total_payout = (income_amount * self.total_pct_bps.value) // UInt64(10_000)
+    intc_0 // 0
+    bytec_3 // "total_pct_bps"
+    app_global_get_ex
+    assert // check self.total_pct_bps exists
+    dig 2
+    *
+    intc_3 // 10000
+    /
+    // smart_contracts/algomint/contract.py:125
+    // assert total_payout > UInt64(0)
+    dup
+    assert
+    // smart_contracts/algomint/contract.py:127-128
+    // # Require the creator to fund the app for this quarter's payouts.
+    // assert payout_funding.sender == Txn.sender
+    dig 1
+    gtxns Sender
+    txn Sender
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:129
+    // assert payout_funding.receiver == Global.current_application_address
+    dig 1
+    gtxns Receiver
+    global CurrentApplicationAddress
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:130
+    // assert payout_funding.amount == total_payout
+    swap
+    gtxns Amount
+    dig 1
+    ==
+    assert
+    // smart_contracts/algomint/contract.py:132
     // self.last_reported_quarter.value = quarter
     bytec_1 // "last_reported_quarter"
+    uncover 3
+    app_global_put
+    // smart_contracts/algomint/contract.py:133
+    // self.last_reported_income.value = income_amount
+    bytec 12 // "last_reported_income"
     uncover 2
     app_global_put
-    // smart_contracts/algomint/contract.py:88
-    // self.last_reported_income.value = income_amount
-    bytec 10 // "last_reported_income"
-    dig 1
-    app_global_put
-    // smart_contracts/algomint/contract.py:89
-    // self.payout_per_nft.value = (income_amount * self.pct_per_nft_bps.value) // UInt64(10_000)
+    // smart_contracts/algomint/contract.py:134
+    // self.payout_per_nft.value = total_payout // self.total_nfts.value
     intc_0 // 0
-    bytec 6 // "pct_per_nft_bps"
+    bytec_2 // "total_nfts"
     app_global_get_ex
-    assert // check self.pct_per_nft_bps exists
-    *
-    pushint 10000
+    assert // check self.total_nfts exists
     /
-    bytec_2 // "payout_per_nft"
+    bytec 5 // "payout_per_nft"
     swap
     app_global_put
-    // smart_contracts/algomint/contract.py:81
+    // smart_contracts/algomint/contract.py:115
     // @arc4.abimethod
     intc_1 // 1
     return
@@ -495,7 +673,7 @@ report_income:
 
 // smart_contracts.algomint.contract.Algomint.claim_payout[routing]() -> void:
 claim_payout:
-    // smart_contracts/algomint/contract.py:91
+    // smart_contracts/algomint/contract.py:136
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
@@ -504,22 +682,22 @@ claim_payout:
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
-    // smart_contracts/algomint/contract.py:93
+    // smart_contracts/algomint/contract.py:138
     // assert self.initialized.value
     intc_0 // 0
     bytec_0 // "initialized"
     app_global_get_ex
     assert // check self.initialized exists
     assert
-    // smart_contracts/algomint/contract.py:94
+    // smart_contracts/algomint/contract.py:139
     // assert asset_id > UInt64(0)
     dup
     assert
-    // smart_contracts/algomint/contract.py:95
+    // smart_contracts/algomint/contract.py:140
     // assert self.minted_assets.get(asset_id, default=UInt64(0)) == UInt64(1)
     dup
     itob
-    bytec_3 // "ma_"
+    bytec 7 // "ma_"
     dig 1
     concat
     box_get
@@ -532,7 +710,7 @@ claim_payout:
     intc_1 // 1
     ==
     assert
-    // smart_contracts/algomint/contract.py:96
+    // smart_contracts/algomint/contract.py:141
     // assert self.last_reported_quarter.value > UInt64(0)
     intc_0 // 0
     bytec_1 // "last_reported_quarter"
@@ -540,22 +718,22 @@ claim_payout:
     assert // check self.last_reported_quarter exists
     dup
     assert
-    // smart_contracts/algomint/contract.py:98
+    // smart_contracts/algomint/contract.py:143
     // holder_balance, holder_opted = op.AssetHoldingGet.asset_balance(Txn.sender, Asset(asset_id))
     txn Sender
     uncover 3
     asset_holding_get AssetBalance
-    // smart_contracts/algomint/contract.py:99
+    // smart_contracts/algomint/contract.py:144
     // assert holder_opted
     assert
-    // smart_contracts/algomint/contract.py:100
+    // smart_contracts/algomint/contract.py:145
     // assert holder_balance == UInt64(1)
     intc_1 // 1
     ==
     assert
-    // smart_contracts/algomint/contract.py:102
+    // smart_contracts/algomint/contract.py:147
     // claimed = self.last_claimed_quarter.get(asset_id, default=UInt64(0))
-    bytec 11 // "lc_"
+    bytec 13 // "lc_"
     uncover 2
     concat
     dup
@@ -566,52 +744,52 @@ claim_payout:
     swap
     uncover 2
     select
-    // smart_contracts/algomint/contract.py:103
+    // smart_contracts/algomint/contract.py:148
     // assert claimed < self.last_reported_quarter.value
     dig 2
     <
     assert
-    // smart_contracts/algomint/contract.py:104
+    // smart_contracts/algomint/contract.py:149
     // assert self.payout_per_nft.value > UInt64(0)
     intc_0 // 0
-    bytec_2 // "payout_per_nft"
+    bytec 5 // "payout_per_nft"
     app_global_get_ex
     assert // check self.payout_per_nft exists
     dup
     assert
-    // smart_contracts/algomint/contract.py:106-110
+    // smart_contracts/algomint/contract.py:151-155
     // itxn.Payment(
     //     amount=self.payout_per_nft.value,
     //     receiver=Txn.sender,
     //     fee=0,
     // ).submit()
     itxn_begin
-    // smart_contracts/algomint/contract.py:108
+    // smart_contracts/algomint/contract.py:153
     // receiver=Txn.sender,
     txn Sender
     itxn_field Receiver
     itxn_field Amount
-    // smart_contracts/algomint/contract.py:106
+    // smart_contracts/algomint/contract.py:151
     // itxn.Payment(
     intc_1 // pay
     itxn_field TypeEnum
-    // smart_contracts/algomint/contract.py:109
+    // smart_contracts/algomint/contract.py:154
     // fee=0,
     intc_0 // 0
     itxn_field Fee
-    // smart_contracts/algomint/contract.py:106-110
+    // smart_contracts/algomint/contract.py:151-155
     // itxn.Payment(
     //     amount=self.payout_per_nft.value,
     //     receiver=Txn.sender,
     //     fee=0,
     // ).submit()
     itxn_submit
-    // smart_contracts/algomint/contract.py:112
+    // smart_contracts/algomint/contract.py:157
     // self.last_claimed_quarter[asset_id] = self.last_reported_quarter.value
     swap
     itob
     box_put
-    // smart_contracts/algomint/contract.py:91
+    // smart_contracts/algomint/contract.py:136
     // @arc4.abimethod
     intc_1 // 1
     return
@@ -620,7 +798,7 @@ claim_payout:
 // smart_contracts.algomint.contract.Algomint.get_pending_payout[routing]() -> void:
 get_pending_payout:
     pushbytes ""
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     txna ApplicationArgs 1
     dup
@@ -638,24 +816,24 @@ get_pending_payout:
     pushint 32
     ==
     assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
-    // smart_contracts/algomint/contract.py:116
+    // smart_contracts/algomint/contract.py:161
     // assert self.initialized.value
     intc_0 // 0
     bytec_0 // "initialized"
     app_global_get_ex
     assert // check self.initialized exists
     assert
-    // smart_contracts/algomint/contract.py:117
+    // smart_contracts/algomint/contract.py:162
     // assert asset_id > UInt64(0)
     dig 1
     assert
-    // smart_contracts/algomint/contract.py:118
+    // smart_contracts/algomint/contract.py:163
     // assert self.minted_assets.get(asset_id, default=UInt64(0)) == UInt64(1)
     swap
     itob
     dup
     cover 2
-    bytec_3 // "ma_"
+    bytec 7 // "ma_"
     swap
     concat
     box_get
@@ -668,27 +846,27 @@ get_pending_payout:
     intc_1 // 1
     ==
     assert
-    // smart_contracts/algomint/contract.py:119
+    // smart_contracts/algomint/contract.py:164
     // assert address != Global.zero_address
     global ZeroAddress
     !=
     assert
-    // smart_contracts/algomint/contract.py:121
+    // smart_contracts/algomint/contract.py:166
     // if self.last_reported_quarter.value == UInt64(0):
     intc_0 // 0
     bytec_1 // "last_reported_quarter"
     app_global_get_ex
     assert // check self.last_reported_quarter exists
     bnz get_pending_payout_after_if_else@3
-    // smart_contracts/algomint/contract.py:122
+    // smart_contracts/algomint/contract.py:167
     // return UInt64(0)
     intc_0 // 0
 
 get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_pending_payout@10:
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     itob
-    pushbytes 0x151f7c75
+    bytec 14 // 0x151f7c75
     swap
     concat
     log
@@ -696,41 +874,41 @@ get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_
     return
 
 get_pending_payout_after_if_else@3:
-    // smart_contracts/algomint/contract.py:124
+    // smart_contracts/algomint/contract.py:169
     // holder_balance, holder_opted = op.AssetHoldingGet.asset_balance(address, Asset(asset_id))
     dig 1
     dig 3
     asset_holding_get AssetBalance
     swap
     bury 5
-    // smart_contracts/algomint/contract.py:125
+    // smart_contracts/algomint/contract.py:170
     // if not holder_opted:
     bnz get_pending_payout_after_if_else@5
-    // smart_contracts/algomint/contract.py:126
+    // smart_contracts/algomint/contract.py:171
     // return UInt64(0)
     intc_0 // 0
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     b get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_pending_payout@10
 
 get_pending_payout_after_if_else@5:
-    // smart_contracts/algomint/contract.py:127
+    // smart_contracts/algomint/contract.py:172
     // if holder_balance != UInt64(1):
     dig 3
     intc_1 // 1
     !=
     bz get_pending_payout_after_if_else@7
-    // smart_contracts/algomint/contract.py:128
+    // smart_contracts/algomint/contract.py:173
     // return UInt64(0)
     intc_0 // 0
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     b get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_pending_payout@10
 
 get_pending_payout_after_if_else@7:
-    // smart_contracts/algomint/contract.py:130
+    // smart_contracts/algomint/contract.py:175
     // claimed = self.last_claimed_quarter.get(asset_id, default=UInt64(0))
-    bytec 11 // "lc_"
+    bytec 13 // "lc_"
     dig 1
     concat
     box_get
@@ -740,7 +918,7 @@ get_pending_payout_after_if_else@7:
     swap
     uncover 2
     select
-    // smart_contracts/algomint/contract.py:131
+    // smart_contracts/algomint/contract.py:176
     // if claimed < self.last_reported_quarter.value:
     intc_0 // 0
     bytec_1 // "last_reported_quarter"
@@ -748,20 +926,127 @@ get_pending_payout_after_if_else@7:
     assert // check self.last_reported_quarter exists
     <
     bz get_pending_payout_after_if_else@9
-    // smart_contracts/algomint/contract.py:132
+    // smart_contracts/algomint/contract.py:177
     // return self.payout_per_nft.value
     intc_0 // 0
-    bytec_2 // "payout_per_nft"
+    bytec 5 // "payout_per_nft"
     app_global_get_ex
     assert // check self.payout_per_nft exists
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     b get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_pending_payout@10
 
 get_pending_payout_after_if_else@9:
-    // smart_contracts/algomint/contract.py:133
+    // smart_contracts/algomint/contract.py:178
     // return UInt64(0)
     intc_0 // 0
-    // smart_contracts/algomint/contract.py:114
+    // smart_contracts/algomint/contract.py:159
     // @arc4.abimethod(readonly=True)
     b get_pending_payout_after_inlined_smart_contracts.algomint.contract.Algomint.get_pending_payout@10
+
+
+// smart_contracts.algomint.contract.Algomint.get_terms[routing]() -> void:
+get_terms:
+    intc_0 // 0
+    // smart_contracts/algomint/contract.py:185-187
+    // # Must be safe to call before minting/initialization (UI calls this after deploy).
+    // # Return zero/default values until initialized.
+    // if not self.initialized.value:
+    dup
+    bytec_0 // "initialized"
+    app_global_get_ex
+    assert // check self.initialized exists
+    bnz get_terms_after_if_else@3
+    // smart_contracts/algomint/contract.py:189
+    // Global.zero_address,
+    global ZeroAddress
+    bury 1
+    // smart_contracts/algomint/contract.py:190
+    // UInt64(0),
+    intc_0 // 0
+    // smart_contracts/algomint/contract.py:191-195
+    // UInt64(0),
+    // UInt64(0),
+    // UInt64(0),
+    // UInt64(0),
+    // UInt64(0),
+    dupn 5
+
+get_terms_after_inlined_smart_contracts.algomint.contract.Algomint.get_terms@4:
+    // smart_contracts/algomint/contract.py:180
+    // @arc4.abimethod(readonly=True)
+    uncover 5
+    itob
+    dig 6
+    swap
+    concat
+    uncover 5
+    itob
+    concat
+    uncover 4
+    itob
+    concat
+    uncover 3
+    itob
+    concat
+    uncover 2
+    itob
+    concat
+    swap
+    itob
+    concat
+    bytec 14 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+get_terms_after_if_else@3:
+    // smart_contracts/algomint/contract.py:198
+    // self.creator.value,
+    intc_0 // 0
+    bytec 6 // "creator"
+    app_global_get_ex
+    assert // check self.creator exists
+    // smart_contracts/algomint/contract.py:199
+    // self.total_nfts.value,
+    intc_0 // 0
+    bytec_2 // "total_nfts"
+    app_global_get_ex
+    assert // check self.total_nfts exists
+    // smart_contracts/algomint/contract.py:200
+    // self.total_pct_bps.value,
+    intc_0 // 0
+    bytec_3 // "total_pct_bps"
+    app_global_get_ex
+    assert // check self.total_pct_bps exists
+    // smart_contracts/algomint/contract.py:201
+    // self.duration_years.value,
+    intc_0 // 0
+    bytec 8 // "duration_years"
+    app_global_get_ex
+    assert // check self.duration_years exists
+    // smart_contracts/algomint/contract.py:202
+    // self.start_quarter.value,
+    intc_0 // 0
+    bytec 9 // "start_quarter"
+    app_global_get_ex
+    assert // check self.start_quarter exists
+    // smart_contracts/algomint/contract.py:203
+    // self.sale_price.value,
+    intc_0 // 0
+    bytec 4 // "sale_price"
+    app_global_get_ex
+    assert // check self.sale_price exists
+    // smart_contracts/algomint/contract.py:204
+    // self.first_asset_id.value,
+    intc_0 // 0
+    bytec 10 // "first_asset_id"
+    app_global_get_ex
+    assert // check self.first_asset_id exists
+    uncover 6
+    bury 7
+    // smart_contracts/algomint/contract.py:180
+    // @arc4.abimethod(readonly=True)
+    b get_terms_after_inlined_smart_contracts.algomint.contract.Algomint.get_terms@4
