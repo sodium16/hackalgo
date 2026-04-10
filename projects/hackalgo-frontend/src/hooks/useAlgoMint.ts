@@ -49,6 +49,22 @@ function defaultState(): PersistedState {
   }
 }
 
+function uniqueNote(prefix: string) {
+  // Ensure unique txid even if suggestedParams are identical (same round).
+  // Algorand txid includes the note field.
+  const rand = new Uint8Array(8)
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(rand)
+  } else {
+    const n = Date.now() ^ Math.floor(Math.random() * 1e9)
+    for (let i = 0; i < rand.length; i++) rand[i] = (n >> (i * 3)) & 0xff
+  }
+  const text = `${prefix}_${Date.now()}_${Array.from(rand)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')}`
+  return new TextEncoder().encode(text)
+}
+
 export function useAlgoMint() {
   const { transactionSigner, activeAddress } = useWallet()
   const [state, setState] = useState<PersistedState>(() => loadState())
@@ -62,6 +78,9 @@ export function useAlgoMint() {
     activeAddressRef.current = activeAddress ?? null
     signerRef.current = transactionSigner ?? null
   }, [activeAddress, transactionSigner])
+
+  // Prevent concurrent deploy races (refreshTerms/listNfts calling getClient simultaneously)
+  const getClientPromiseRef = useRef<Promise<AlgomintClient> | null>(null)
 
   const persist = useCallback((next: PersistedState) => {
     setState(next)
@@ -88,32 +107,41 @@ export function useAlgoMint() {
       })
     }
 
+    if (getClientPromiseRef.current) return await getClientPromiseRef.current
+
     // Hackathon convenience: deploy the app from the UI on first use.
-    const factory = new AlgomintFactory({
-      algorand,
-      defaultSender: sender,
-      defaultSigner: signer,
-    })
+    getClientPromiseRef.current = (async () => {
+      try {
+        const factory = new AlgomintFactory({
+          algorand,
+          defaultSender: sender,
+          defaultSigner: signer,
+        })
+        const deployed = await factory.send.create.bare({ note: uniqueNote('app_create') })
+        const appId = deployed.appClient.appId.toString()
+        persist({ appId })
+        return deployed.appClient.clone({ defaultSender: sender, defaultSigner: signer })
+      } finally {
+        getClientPromiseRef.current = null
+      }
+    })()
 
-    const deployed = await factory.send.create.bare({})
-    const appId = deployed.appClient.appId.toString()
-    persist({ appId })
-
-    return deployed.appClient.clone({ defaultSender: sender, defaultSigner: signer })
+    return await getClientPromiseRef.current
   }, [algorand, persist, state.appId])
 
   const fetchTerms = useCallback(async (): Promise<AlgoMintTerms | null> => {
     if (!state.appId) return null
     const client = await getClient()
-    const [creator, totalNfts, totalPctBps, durationYears, startQuarter, salePrice, firstAssetId] =
-      await client.getTerms()
+    const gs = await client.state.global.getAll()
+    const initialized = Number(gs.initialized ?? 0n) === 1
+    if (!initialized) return null
     return {
-      nft_count: Number(totalNfts),
-      total_pct_bps: Number(totalPctBps),
-      duration_years: Number(durationYears),
-      start_quarter: Number(startQuarter),
-      sale_price_micro_algo: Number(salePrice),
-      first_asset_id: Number(firstAssetId),
+      nft_count: Number(gs.totalNfts ?? 0n),
+      total_pct_bps: Number(gs.totalPctBps ?? 0n),
+      duration_years: Number(gs.durationYears ?? 0n),
+      start_quarter: Number(gs.startQuarter ?? 0n),
+      sale_price_micro_algo: Number(gs.salePrice ?? 0n),
+      first_asset_id: Number(gs.firstAssetId ?? 0n),
     }
   }, [getClient, state.appId])
 
@@ -126,16 +154,21 @@ export function useAlgoMint() {
       return
     }
     const client = await getClient()
-    const [creator, totalNfts, totalPctBps, durationYears, startQuarter, salePrice, firstAssetId] =
-      await client.getTerms()
-    setCreatorAddressValue(creator)
+    const gs = await client.state.global.getAll()
+    const initialized = Number(gs.initialized ?? 0n) === 1
+    if (!initialized) {
+      setCreatorAddressValue(null)
+      setTermsValue(null)
+      return
+    }
+    setCreatorAddressValue((gs.creator ?? '').toString())
     setTermsValue({
-      nft_count: Number(totalNfts),
-      total_pct_bps: Number(totalPctBps),
-      duration_years: Number(durationYears),
-      start_quarter: Number(startQuarter),
-      sale_price_micro_algo: Number(salePrice),
-      first_asset_id: Number(firstAssetId),
+      nft_count: Number(gs.totalNfts ?? 0n),
+      total_pct_bps: Number(gs.totalPctBps ?? 0n),
+      duration_years: Number(gs.durationYears ?? 0n),
+      start_quarter: Number(gs.startQuarter ?? 0n),
+      sale_price_micro_algo: Number(gs.salePrice ?? 0n),
+      first_asset_id: Number(gs.firstAssetId ?? 0n),
     })
   }, [getClient, state.appId])
 
@@ -206,6 +239,7 @@ export function useAlgoMint() {
       receiver: client.appAddress,
       amount: mbrAmount,
       suggestedParams: sp,
+      note: uniqueNote('mbr_payment'),
     })
 
       const group = client.newGroup()
@@ -213,6 +247,7 @@ export function useAlgoMint() {
       group.mintFutureNft({
         sender,
         signer,
+        note: uniqueNote('app_call_mint'),
         args: {
           totalNfts: args.nft_count,
           totalPctBps: args.total_pct_bps,
@@ -250,6 +285,7 @@ export function useAlgoMint() {
         assetIndex: assetId,
         amount: 0,
         suggestedParams: sp,
+        note: uniqueNote('opt_in'),
       })
 
       const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
@@ -257,6 +293,7 @@ export function useAlgoMint() {
         receiver: client.appAddress,
         amount: Number(t.sale_price_micro_algo),
         suggestedParams: sp,
+        note: uniqueNote('buy_payment'),
       })
 
       const group = client.newGroup()
@@ -265,6 +302,7 @@ export function useAlgoMint() {
       group.buyNft({
         sender,
         signer,
+        note: uniqueNote('app_call_buy'),
         args: { assetId, optIn: optInTxn, payment: payTxn },
       })
       await group.send()
@@ -277,10 +315,24 @@ export function useAlgoMint() {
     async (args: { asset_id: number; address: string }) => {
       if (!state.appId) return 0
       const client = await getClient()
-      const pending = await client.getPendingPayout({ args: { assetId: args.asset_id, address: args.address } })
-      return Number(pending)
+      // Avoid simulate by computing pending from state:
+      // pending = payout_per_nft if (holder owns NFT) AND last_reported_quarter > last_claimed_quarter
+      const gs = await client.state.global.getAll()
+      const lastReportedQuarter = gs.lastReportedQuarter ?? 0n
+      if (lastReportedQuarter === 0n) return 0
+      const payoutPerNft = gs.payoutPerNft ?? 0n
+      if (payoutPerNft === 0n) return 0
+
+      // Confirm address holds the NFT
+      const hold = await algorand.client.algod.accountAssetInformation(args.address, args.asset_id).do().catch(() => null)
+      const owns = (hold?.assetHolding?.amount ?? 0n) === 1n
+      if (!owns) return 0
+
+      const lastClaimed = (await client.state.box.lastClaimedQuarter.value(args.asset_id)) ?? 0n
+      if (lastClaimed >= lastReportedQuarter) return 0
+      return Number(payoutPerNft)
     },
-    [getClient, state.appId],
+    [algorand.client.algod, getClient, state.appId],
   )
 
   const claim_payout = useCallback(
@@ -292,6 +344,7 @@ export function useAlgoMint() {
       await client.send.claimPayout({
         sender,
         signer,
+        note: uniqueNote('app_call_claim'),
         args: { assetId: args.asset_id },
       })
     },
@@ -319,6 +372,7 @@ export function useAlgoMint() {
         receiver: client.appAddress,
         amount: totalPayout,
         suggestedParams: sp,
+        note: uniqueNote('payout_funding'),
       })
 
       const group = client.newGroup()
@@ -326,6 +380,7 @@ export function useAlgoMint() {
       group.reportIncome({
         sender,
         signer,
+        note: uniqueNote('app_call_report'),
         args: { quarter: args.quarter, incomeAmount: args.income_amount, payoutFunding: fundTxn },
       })
       await group.send()
