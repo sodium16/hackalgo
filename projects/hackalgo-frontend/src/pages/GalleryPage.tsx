@@ -30,7 +30,7 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
     } finally {
       setLoading(false)
     }
-  }, [activeAddress, algoMint])
+  }, [activeAddress, algoMint.get_pending_payout, algoMint.listNfts, enqueueSnackbar])
 
   useEffect(() => {
     void refresh()
