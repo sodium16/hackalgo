@@ -1,0 +1,9 @@
+{
+  "name": "Future Earning NFT #1",
+  "description": "Entitles holder to 0.5% of creator's income over 3 years.",
+  "image": "ipfs://QmPlaceholder",
+  "properties": {
+    "percentage_bps": 50,
+    "expiration_quarter": 20294
+  }
+}
