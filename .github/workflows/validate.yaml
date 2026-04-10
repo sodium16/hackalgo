@@ -1,0 +1,14 @@
+name: Pull Request validation
+
+on: [pull_request]
+
+
+jobs:
+  hackalgo-contracts-ci:
+    name: Run hackalgo-contracts validation
+    uses: ./.github/workflows/hackalgo-contracts-ci.yaml
+
+  hackalgo-frontend-ci:
+    name: Run hackalgo-frontend validation
+    uses: ./.github/workflows/hackalgo-frontend-ci.yaml
+

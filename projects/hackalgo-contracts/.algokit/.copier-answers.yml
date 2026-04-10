@@ -1,0 +1,10 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 1.8.1
+_src_path: gh:algorandfoundation/algokit-python-template
+author_email: vishwas.naveen2580@gmail.com
+author_name: sodium16
+contract_name: algomint
+deployment_language: python
+preset_name: production
+project_name: hackalgo-contracts
+

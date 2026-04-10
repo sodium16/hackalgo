@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.vscode/**'
+      - '.idea/**'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  hackalgo-contracts-validate:
+    name: Run hackalgo-contracts release
+    secrets: inherit
+    uses: ./.github/workflows/hackalgo-contracts-ci.yaml
+
+  hackalgo-contracts-release:
+    name: Run hackalgo-contracts release
+    secrets: inherit
+    uses: ./.github/workflows/hackalgo-contracts-cd.yaml
+    needs: hackalgo-contracts-validate
+
+  hackalgo-frontend-validate:
+    name: Run hackalgo-frontend release
+    secrets: inherit
+    uses: ./.github/workflows/hackalgo-frontend-ci.yaml
+
+  hackalgo-frontend-release:
+    name: Run hackalgo-frontend release
+    secrets: inherit
+    uses: ./.github/workflows/hackalgo-frontend-cd.yaml
+    needs: hackalgo-frontend-validate
