@@ -156,6 +156,31 @@ class Algomint(ARC4Contract):
 
         self.last_claimed_quarter[asset_id] = self.last_reported_quarter.value
 
+    @arc4.abimethod
+    def secondary_sale(
+        self,
+        asset_id: UInt64,
+        seller_payment: gtxn.PaymentTransaction,
+        royalty_payment: gtxn.PaymentTransaction,
+        asset_transfer: gtxn.AssetTransferTransaction,
+    ) -> None:
+        # 1. Security checks.
+        assert self.initialized.value
+        assert asset_id > UInt64(0)
+        assert self.minted_assets.get(asset_id, default=UInt64(0)) == UInt64(1)
+
+        # 2. Verify seller payment.
+        assert seller_payment.receiver == asset_transfer.sender
+
+        # 3. Verify royalty payment (10%).
+        expected_royalty = seller_payment.amount // UInt64(10)
+        assert royalty_payment.amount >= expected_royalty
+        assert royalty_payment.receiver == self.creator.value
+
+        # 4. Verify asset transfer.
+        assert asset_transfer.xfer_asset.id == asset_id
+        assert asset_transfer.asset_receiver == seller_payment.sender
+
     @arc4.abimethod(readonly=True)
     def get_pending_payout(self, asset_id: UInt64, address: Account) -> UInt64:
         assert self.initialized.value

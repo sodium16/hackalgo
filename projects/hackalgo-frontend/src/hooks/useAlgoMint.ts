@@ -314,6 +314,59 @@ export function useAlgoMint() {
     [algorand.client.algod, fetchTerms, getClient, refreshTerms, termsValue],
   )
 
+  const secondary_sale = useCallback(
+    async (args: { asset_id: number; seller: string; price_micro_algo: number }) => {
+      const signer = signerRef.current
+      const sender = activeAddressRef.current
+      if (!signer || !sender) throw new Error('Wallet not connected')
+      if (!creatorAddressValue) throw new Error('Creator address unavailable')
+
+      const client = await getClient()
+      const sp = await algorand.client.algod.getTransactionParams().do()
+
+      // 1. Payment to seller.
+      const sellerPay = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender,
+        receiver: args.seller,
+        amount: args.price_micro_algo,
+        suggestedParams: sp,
+      })
+
+      // 2. Royalty to creator (10%).
+      const royaltyPay = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender,
+        receiver: creatorAddressValue,
+        amount: Math.floor(args.price_micro_algo * 0.1),
+        suggestedParams: sp,
+      })
+
+      // 3. Asset transfer (seller to buyer).
+      // Note: in production, seller must sign this transfer or the app must custody the NFT.
+      const assetXfer = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: args.seller,
+        receiver: sender,
+        assetIndex: args.asset_id,
+        amount: 1,
+        suggestedParams: sp,
+      })
+
+      await client
+        .newGroup()
+        .secondarySale({
+          args: {
+            assetId: args.asset_id,
+            sellerPayment: sellerPay,
+            royaltyPayment: royaltyPay,
+            assetTransfer: assetXfer,
+          },
+          sender,
+          signer,
+        })
+        .send()
+    },
+    [algorand.client.algod, getClient, creatorAddressValue],
+  )
+
   const get_pending_payout = useCallback(
     async (args: { asset_id: number; address: string }) => {
       if (!state.appId) return 0
@@ -407,12 +460,24 @@ export function useAlgoMint() {
       listNfts,
       mint_future_nft,
       buy_nft,
+      secondary_sale,
       get_pending_payout,
       claim_payout,
       report_income,
       resetMock,
     }),
-    [creatorAddressValue, listNfts, mint_future_nft, buy_nft, get_pending_payout, claim_payout, report_income, resetMock, termsValue],
+    [
+      creatorAddressValue,
+      listNfts,
+      mint_future_nft,
+      buy_nft,
+      secondary_sale,
+      get_pending_payout,
+      claim_payout,
+      report_income,
+      resetMock,
+      termsValue,
+    ],
   )
 
   return api

@@ -8,6 +8,7 @@ export default function TradePage(props: { onEvent?: (type: ActivityEvent['type'
   const { activeAddress } = useWallet()
   const { enqueueSnackbar } = useSnackbar()
   const algoMint = useAlgoMint()
+  const SECONDARY_PRICE_MICRO_ALGO = 15_000_000
 
   const [marketItems, setMarketItems] = useState<AlgoMintNft[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,13 +53,20 @@ export default function TradePage(props: { onEvent?: (type: ActivityEvent['type'
                     className="btn btn-xs btn-accent mt-1"
                     onClick={async () => {
                       try {
-                        // In a real app, this would call a secondary_sale method
                         enqueueSnackbar('Initiating Atomic Swap with Royalties...', { variant: 'info' })
-                        // Mocking the trade logic for the demo
-                        setTimeout(() => {
-                          enqueueSnackbar('Trade Successful: Creator received 1.5 ALGO', { variant: 'success' })
-                          props.onEvent?.('BUY', `Secondary sale completed for NFT #${item.assetId}`)
-                        }, 2000)
+                        if (!item.owner || item.owner === 'unknown') {
+                          throw new Error('Seller address unavailable for this listing')
+                        }
+
+                        await algoMint.secondary_sale({
+                          asset_id: item.assetId,
+                          seller: item.owner,
+                          price_micro_algo: SECONDARY_PRICE_MICRO_ALGO,
+                        })
+
+                        enqueueSnackbar('Trade successful. Royalty sent to creator.', { variant: 'success' })
+                        props.onEvent?.('BUY', `Secondary sale completed for NFT #${item.assetId}`)
+                        await refreshMarket()
                       } catch (e) {
                         enqueueSnackbar('Trade failed', { variant: 'error' })
                       }
