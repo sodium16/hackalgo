@@ -1,5 +1,10 @@
 import { useAlgoMint } from '../hooks/useAlgoMint'
 import { useMemo } from 'react'
+import ActivityFeed, { ActivityEvent } from '../components/ActivityFeed'
+
+interface PortfolioPageProps {
+  events: ActivityEvent[]
+}
 
 // Hardcoded historical data for the demo
 const historicalPerformance = [
@@ -8,7 +13,7 @@ const historicalPerformance = [
   { quarter: 'Q3', revenue: 5800, payout: 580 },
 ]
 
-export default function PortfolioPage() {
+export default function PortfolioPage({ events }: PortfolioPageProps) {
   const { terms, creatorAddress } = useAlgoMint()
 
   const stats = useMemo(
@@ -22,7 +27,7 @@ export default function PortfolioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Metrics Row */}
+      {/* Metrics Row (Total Revenue, Avg Yield, etc.) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="stat bg-base-100 shadow rounded-box">
           <div className="stat-title">Total Platform Revenue</div>
@@ -40,61 +45,42 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      <div className="card bg-base-100 shadow-xl border-l-4 border-success">
-        <div className="card-body py-4">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <span className="badge badge-success badge-sm">SECURE</span>
-            On-Chain Safety Check
-          </h3>
-          <div className="space-y-2 mt-2">
-            <div className="flex justify-between text-sm">
-              <span>Atomic Payment Enforcement</span>
-              <span className="text-success">✔ Verified</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Immutable Revenue Share</span>
-              <span className="text-success">✔ Locked</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Box Storage Allocation</span>
-              <span className="text-success">✔ Funded</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Graphical Representation (Hardcoded for Demo) */}
-      <div className="card bg-base-100 shadow">
-        <div className="card-body">
-          <h2 className="card-title text-sm opacity-70 uppercase tracking-widest font-mono">Revenue Distribution</h2>
-          {/* FIX: Ensure flex items stretch and parent has a relative height */}
-          <div className="flex items-end justify-between gap-4 h-64 mt-4 border-b border-base-300 pb-2 relative">
-            {historicalPerformance.map((data, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-2 group">
-                {/* Label for value on hover */}
-                <span className="text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">{data.revenue}</span>
-                {/* THE BAR: Using min-height and background color explicitly */}
-                <div
-                  className="w-full bg-blue-500 rounded-t-md transition-all hover:bg-blue-400 cursor-help"
-                  style={{
-                    height: `${(data.revenue / 8000) * 100}%`,
-                    minHeight: '4px', // Ensures it's visible even at low values
-                  }}
-                ></div>
-                <span className="text-[10px] font-black uppercase opacity-60">{data.quarter}</span>
+      {/* Main Content Grid: Chart + Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Column: Revenue Growth Chart (Takes up 2/3 space) */}
+        <div className="lg:col-span-2 card bg-base-100 shadow-xl overflow-hidden">
+          <div className="card-body">
+            <h2 className="card-title text-sm opacity-70 uppercase tracking-widest font-mono">Revenue Growth Distribution</h2>
+            <div className="flex items-end justify-between gap-4 h-64 mt-4 border-b border-base-300 pb-2 relative">
+              {historicalPerformance.map((data, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-2 group">
+                  <span className="text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">{data.revenue}</span>
+                  <div
+                    className="w-full bg-blue-500 rounded-t-md transition-all hover:bg-blue-400 cursor-help"
+                    style={{
+                      height: `${(data.revenue / 8000) * 100}%`,
+                      minHeight: '4px',
+                    }}
+                  ></div>
+                  <span className="text-[10px] font-black uppercase opacity-60">{data.quarter}</span>
+                </div>
+              ))}
+              <div className="flex-1 flex flex-col items-center justify-end h-full gap-2">
+                <span className="text-[10px] font-italic opacity-50 italic">Projected</span>
+                <div className="w-full bg-blue-200 border-2 border-dashed border-blue-400 rounded-t-md h-[85%]"></div>
+                <span className="text-[10px] font-black uppercase opacity-40 italic font-mono">NEXT</span>
               </div>
-            ))}
-            {/*Projected column */}
-            <div className="flex-1 flex flex-col items-center justify-end h-full gap-2">
-              <span className="text-[10px] font-italic opacity-50 italic">Projected</span>
-              <div className="w-full bg-blue-200 border-2 border-dashed border-blue-400 rounded-t-md h-[85%]"></div>
-              <span className="text-[10px] font-black uppercase opacity-40 italic font-mono">NEXT</span>
             </div>
           </div>
         </div>
+
+        {/* Right Column: Activity Feed (Takes up 1/3 space) */}
+        <div className="lg:col-span-1">
+          <ActivityFeed events={events} />
+        </div>
       </div>
 
-      {/* Live Data Footer */}
+      {/* On-Chain Config Footer */}
       <div className="alert shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-6 h-6">
           <path

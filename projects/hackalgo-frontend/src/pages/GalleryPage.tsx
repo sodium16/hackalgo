@@ -1,11 +1,15 @@
 import { useWallet } from '@txnlab/use-wallet-react'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ActivityEvent } from '../components/ActivityFeed'
 import { AlgoMintNft, useAlgoMint } from '../hooks/useAlgoMint'
 
 type NftRow = AlgoMintNft & { pendingPayout: number }
 
-export default function GalleryPage(props: { onRequestWalletConnect: () => void }) {
+export default function GalleryPage(props: {
+  onRequestWalletConnect: () => void
+  onEvent?: (type: ActivityEvent['type'], message: string, txId?: string) => void
+}) {
   const { activeAddress } = useWallet()
   const { enqueueSnackbar } = useSnackbar()
   const algoMint = useAlgoMint()
@@ -92,7 +96,9 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
                                 return
                               }
                               try {
-                                await algoMint.buy_nft({ buyer: activeAddress, asset_id: r.assetId })
+                                await algoMint.buy_nft({ buyer: activeAddress, asset_id: r.assetId }).then(() => {
+                                  props.onEvent?.('BUY', `Bought NFT #${r.assetId}`)
+                                })
                                 enqueueSnackbar('Bought NFT', { variant: 'success' })
                                 await refresh()
                               } catch (e) {
@@ -113,7 +119,9 @@ export default function GalleryPage(props: { onRequestWalletConnect: () => void 
                                 return
                               }
                               try {
-                                await algoMint.claim_payout({ address: activeAddress, asset_id: r.assetId })
+                                await algoMint.claim_payout({ address: activeAddress, asset_id: r.assetId }).then(() => {
+                                  props.onEvent?.('CLAIM', `Claimed payout for NFT #${r.assetId}`)
+                                })
                                 enqueueSnackbar('Claimed payout', { variant: 'success' })
                                 await refresh()
                               } catch (e) {

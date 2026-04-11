@@ -1,21 +1,48 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useWallet } from '@txnlab/use-wallet-react'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import CreatorPage from './pages/CreatorPage'
 import GalleryPage from './pages/GalleryPage'
 import PortfolioPage from './pages/PortfolioPage' // Import the new page
+import TradePage from './pages/TradePage'
+import MyAssets from './components/MyAssets'
+import { useAlgoMint } from './hooks/useAlgoMint'
+import ActivityFeed, { ActivityEvent } from './components/ActivityFeed'
 
 interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
   const { activeAddress } = useWallet()
-  // Updated type to include 'portfolio'
-  const [activeTab, setActiveTab] = useState<'creator' | 'gallery' | 'portfolio'>('creator')
+  const [activeTab, setActiveTab] = useState<'creator' | 'gallery' | 'portfolio' | 'trade'>('creator')
+  const { listNfts } = useAlgoMint()
+  const [allNfts, setAllNfts] = useState<any[]>([])
+  const [events, setEvents] = useState<ActivityEvent[]>([])
+
+  const addEvent = (type: ActivityEvent['type'], message: string, txId?: string) => {
+    const newEvent: ActivityEvent = {
+      id: Math.random().toString(36),
+      type,
+      message,
+      timestamp: new Date(),
+      txId
+    }
+    setEvents(prev => [newEvent, ...prev].slice(0, 10))
+  }
 
   const toggleWalletModal = () => {
     setOpenWalletModal(!openWalletModal)
   }
+
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await listNfts()
+      setAllNfts(data)
+    }
+    load()
+  }, [listNfts])
 
   return (
     <div className="min-h-screen bg-base-200">
@@ -37,6 +64,9 @@ const Home: React.FC<HomeProps> = () => {
             >
               Portfolio
             </button>
+            <button className={`tab ${activeTab === 'trade' ? 'tab-active' : ''}`} onClick={() => setActiveTab('trade')}>
+              Trade
+            </button>
           </div>
         </div>
         <div className="navbar-end">
@@ -50,10 +80,19 @@ const Home: React.FC<HomeProps> = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-6">
-        {activeTab === 'creator' && <CreatorPage onRequestWalletConnect={toggleWalletModal} />}
-        {activeTab === 'gallery' && <GalleryPage onRequestWalletConnect={toggleWalletModal} />}
-        {activeTab === 'portfolio' && <PortfolioPage />}
+      <div className="max-w-7xl mx-auto p-6 flex flex-col md:flex-row gap-6">
+        <div className="flex-1">
+          {activeTab === 'creator' && <CreatorPage onRequestWalletConnect={toggleWalletModal} onEvent={addEvent} />}
+          {activeTab === 'gallery' && <GalleryPage onRequestWalletConnect={toggleWalletModal} onEvent={addEvent} />}
+          {activeTab === 'portfolio' && <PortfolioPage events={events}/>}
+          {activeTab === 'trade' && <TradePage onEvent={addEvent} />}
+        </div>
+
+        {(activeTab === 'gallery' || activeTab === 'trade') && (
+          <div className="shrink-0">
+            <MyAssets nfts={allNfts} onAction={(id) => setActiveTab('gallery')} />
+          </div>
+        )}
       </div>
 
       <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
