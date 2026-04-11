@@ -193,13 +193,19 @@ export function useAlgoMint() {
         // - For sale: app holds the NFT
         // - Owned by you: connected wallet holds the NFT
         // - Otherwise: owner unknown (treated as not-for-sale)
-        const appInfo = await algod.accountAssetInformation(appAddr, assetId).do().catch(() => null)
+        const appInfo = await algod
+          .accountAssetInformation(appAddr, assetId)
+          .do()
+          .catch(() => null)
         const appHolds = (appInfo?.assetHolding?.amount ?? 0n) === 1n
         if (appHolds) return { assetId, owner: null }
 
         const sender = activeAddressRef.current
         if (sender) {
-          const youInfo = await algod.accountAssetInformation(sender, assetId).do().catch(() => null)
+          const youInfo = await algod
+            .accountAssetInformation(sender, assetId)
+            .do()
+            .catch(() => null)
           const youHold = (youInfo?.assetHolding?.amount ?? 0n) === 1n
           if (youHold) return { assetId, owner: sender }
         }
@@ -234,13 +240,13 @@ export function useAlgoMint() {
       const client = await getClient()
       const sp = await algorand.client.algod.getTransactionParams().do()
       const mbrAmount = args.mbr_payment_micro_algo ?? algo(1).microAlgo
-    const mbrPaymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender,
-      receiver: client.appAddress,
-      amount: mbrAmount,
-      suggestedParams: sp,
-      note: uniqueNote('mbr_payment'),
-    })
+      const mbrPaymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender,
+        receiver: client.appAddress,
+        amount: mbrAmount,
+        suggestedParams: sp,
+        note: uniqueNote('mbr_payment'),
+      })
 
       const group = client.newGroup()
       group.mintFutureNft({
@@ -321,7 +327,10 @@ export function useAlgoMint() {
       if (payoutPerNft === 0n) return 0
 
       // Confirm address holds the NFT
-      const hold = await algorand.client.algod.accountAssetInformation(args.address, args.asset_id).do().catch(() => null)
+      const hold = await algorand.client.algod
+        .accountAssetInformation(args.address, args.asset_id)
+        .do()
+        .catch(() => null)
       const owns = (hold?.assetHolding?.amount ?? 0n) === 1n
       if (!owns) return 0
 
@@ -403,17 +412,7 @@ export function useAlgoMint() {
       report_income,
       resetMock,
     }),
-    [
-      creatorAddressValue,
-      listNfts,
-      mint_future_nft,
-      buy_nft,
-      get_pending_payout,
-      claim_payout,
-      report_income,
-      resetMock,
-      termsValue,
-    ],
+    [creatorAddressValue, listNfts, mint_future_nft, buy_nft, get_pending_payout, claim_payout, report_income, resetMock, termsValue],
   )
 
   return api

@@ -1,9 +1,13 @@
 import { useWallet } from '@txnlab/use-wallet-react'
 import { useSnackbar } from 'notistack'
 import { useMemo, useState } from 'react'
+import { ActivityEvent } from '../components/ActivityFeed'
 import { useAlgoMint } from '../hooks/useAlgoMint'
 
-export default function CreatorPage(props: { onRequestWalletConnect: () => void }) {
+export default function CreatorPage(props: {
+  onRequestWalletConnect: () => void
+  onEvent?: (type: ActivityEvent['type'], message: string, txId?: string) => void
+}) {
   const { activeAddress } = useWallet()
   const { enqueueSnackbar } = useSnackbar()
   const algoMint = useAlgoMint()
@@ -108,15 +112,20 @@ export default function CreatorPage(props: { onRequestWalletConnect: () => void 
 
               try {
                 const totalPctBps = Math.round(totalPercent * 100)
-                const assetIds = await algoMint.mint_future_nft({
-                  creator: activeAddress,
-                  nft_count: nftCount,
-                  total_pct_bps: totalPctBps,
-                  duration_years: durationYears,
-                  start_quarter: quarter,
-                  sale_price_micro_algo: salePriceMicroAlgo,
-                })
-                enqueueSnackbar(`Minted ${assetIds.length} NFTs`, { variant: 'success' })
+                await algoMint
+                  .mint_future_nft({
+                    creator: activeAddress,
+                    nft_count: nftCount,
+                    total_pct_bps: totalPctBps,
+                    duration_years: durationYears,
+                    start_quarter: quarter,
+                    sale_price_micro_algo: salePriceMicroAlgo,
+                  })
+                  .then((assetIds) => {
+                    props.onEvent?.('MINT', `Minted ${assetIds.length} future NFTs for ${totalPercent.toFixed(2)}% revenue share`)
+                  })
+
+                enqueueSnackbar(`Minted ${nftCount} NFTs`, { variant: 'success' })
               } catch (e) {
                 enqueueSnackbar((e as Error).message, { variant: 'error' })
               }
@@ -177,7 +186,13 @@ export default function CreatorPage(props: { onRequestWalletConnect: () => void 
               }
 
               try {
-                const res = await algoMint.report_income({ creator: activeAddress, quarter, income_amount: incomeAmount })
+                const res = await algoMint
+                  .report_income({ creator: activeAddress, quarter, income_amount: incomeAmount })
+                  .then((result) => {
+                    props.onEvent?.('REPORT', `Reported income for Q${quarter}: total payout ${result.totalPayout.toFixed(2)}`)
+                    return result
+                  })
+
                 enqueueSnackbar(`Reported income. Total payout: ${res.totalPayout.toFixed(2)}; per NFT: ${res.perNft.toFixed(2)}`, {
                   variant: 'success',
                 })

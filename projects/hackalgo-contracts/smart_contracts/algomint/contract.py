@@ -66,7 +66,7 @@ class Algomint(ARC4Contract):
                 url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
                 manager=Global.current_application_address,
                 reserve=Global.current_application_address,
-                fee=0,
+                fee=1000,
             ).submit()
             if idx == UInt64(0):
                 self.first_asset_id.value = created.created_asset.id
@@ -104,12 +104,12 @@ class Algomint(ARC4Contract):
             xfer_asset=asset,
             asset_receiver=Txn.sender,
             asset_amount=UInt64(1),
-            fee=0,
+            fee=1000,
         ).submit()
         itxn.Payment(
             receiver=self.creator.value,
             amount=payment.amount,
-            fee=0,
+            fee=1000,
         ).submit()
 
     @arc4.abimethod
@@ -151,7 +151,7 @@ class Algomint(ARC4Contract):
         itxn.Payment(
             amount=self.payout_per_nft.value,
             receiver=Txn.sender,
-            fee=0,
+            fee=1000,
         ).submit()
 
         self.last_claimed_quarter[asset_id] = self.last_reported_quarter.value

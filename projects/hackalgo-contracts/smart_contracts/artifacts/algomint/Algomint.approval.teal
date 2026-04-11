@@ -3,7 +3,7 @@
 
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
-    intcblock 0 1 8 10000
+    intcblock 0 1 8 1000
     bytecblock "initialized" "last_reported_quarter" "total_nfts" "total_pct_bps" "sale_price" "payout_per_nft" "creator" "ma_" "duration_years" "start_quarter" "first_asset_id" "pct_per_nft_bps" "last_reported_income" "lc_" 0x151f7c75
     txn ApplicationID
     bnz main_after_if_else@2
@@ -155,7 +155,7 @@ mint_future_nft:
     // smart_contracts/algomint/contract.py:38
     // assert total_pct_bps <= UInt64(10_000)
     dig 4
-    intc_3 // 10000
+    pushint 10000
     <=
     assert
     // smart_contracts/algomint/contract.py:39
@@ -264,7 +264,7 @@ mint_future_nft_for_header@2:
     //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
     //     manager=Global.current_application_address,
     //     reserve=Global.current_application_address,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_begin
     // smart_contracts/algomint/contract.py:67
@@ -305,8 +305,8 @@ mint_future_nft_for_header@2:
     pushint 3 // acfg
     itxn_field TypeEnum
     // smart_contracts/algomint/contract.py:69
-    // fee=0,
-    intc_0 // 0
+    // fee=1000,
+    intc_3 // 1000
     itxn_field Fee
     // smart_contracts/algomint/contract.py:59-70
     // created = itxn.AssetConfig(
@@ -319,7 +319,7 @@ mint_future_nft_for_header@2:
     //     url=b"template-ipfs://{ipfscid:1:raw:reserve:sha2-256}",
     //     manager=Global.current_application_address,
     //     reserve=Global.current_application_address,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_submit
     itxn CreatedAssetID
@@ -487,7 +487,7 @@ buy_nft:
     //     xfer_asset=asset,
     //     asset_receiver=Txn.sender,
     //     asset_amount=UInt64(1),
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_begin
     // smart_contracts/algomint/contract.py:105
@@ -506,8 +506,8 @@ buy_nft:
     pushint 4 // axfer
     itxn_field TypeEnum
     // smart_contracts/algomint/contract.py:107
-    // fee=0,
-    intc_0 // 0
+    // fee=1000,
+    intc_3 // 1000
     itxn_field Fee
     // smart_contracts/algomint/contract.py:102-108
     // # Transfer NFT to investor and forward payment to creator.
@@ -515,14 +515,14 @@ buy_nft:
     //     xfer_asset=asset,
     //     asset_receiver=Txn.sender,
     //     asset_amount=UInt64(1),
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_submit
     // smart_contracts/algomint/contract.py:109-113
     // itxn.Payment(
     //     receiver=self.creator.value,
     //     amount=payment.amount,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_begin
     // smart_contracts/algomint/contract.py:110
@@ -538,14 +538,14 @@ buy_nft:
     intc_1 // pay
     itxn_field TypeEnum
     // smart_contracts/algomint/contract.py:112
-    // fee=0,
-    intc_0 // 0
+    // fee=1000,
+    intc_3 // 1000
     itxn_field Fee
     // smart_contracts/algomint/contract.py:109-113
     // itxn.Payment(
     //     receiver=self.creator.value,
     //     amount=payment.amount,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_submit
     // smart_contracts/algomint/contract.py:75
@@ -617,7 +617,7 @@ report_income:
     assert // check self.total_pct_bps exists
     dig 2
     *
-    intc_3 // 10000
+    pushint 10000
     /
     // smart_contracts/algomint/contract.py:125
     // assert total_payout > UInt64(0)
@@ -761,7 +761,7 @@ claim_payout:
     // itxn.Payment(
     //     amount=self.payout_per_nft.value,
     //     receiver=Txn.sender,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_begin
     // smart_contracts/algomint/contract.py:153
@@ -774,14 +774,14 @@ claim_payout:
     intc_1 // pay
     itxn_field TypeEnum
     // smart_contracts/algomint/contract.py:154
-    // fee=0,
-    intc_0 // 0
+    // fee=1000,
+    intc_3 // 1000
     itxn_field Fee
     // smart_contracts/algomint/contract.py:151-155
     // itxn.Payment(
     //     amount=self.payout_per_nft.value,
     //     receiver=Txn.sender,
-    //     fee=0,
+    //     fee=1000,
     // ).submit()
     itxn_submit
     // smart_contracts/algomint/contract.py:157
