@@ -458,13 +458,13 @@ Hackathon contributions welcome!
 
 ## 🏆 Hackathon Info
 
-- **Event:** [Hackathon Name]
+- **Event:** Hack Sprint
 - **Track:** Blockchain / Creator Economy
 - **Built By:** Sodium
 - **Network:** Algorand (AVM)
 - **Smart Contract:** PuyaPy
 - **Frontend:** React 18 + TypeScript
-- **Duration:** [Your hackathon duration]
+- **Duration:** 24 hours
 
 ---
 
@@ -478,9 +478,9 @@ Hackathon contributions welcome!
 
 ---
 
-**Live Testnet:** [Link when deployed]  
-**GitHub:** [Repo link]  
-**Demo Video:** [YouTube link if available]
+**Live Testnet:** https://algo-mint.vercel.app/ 
+**GitHub:** https://github.com/sodium16/hackalgo
+**Demo Video:** https://drive.google.com/file/d/1jz9DNhD8g6X_GznQeJNH-cWKbkjyyCJi/view?usp=drive_link
 
 ---
 
