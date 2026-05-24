@@ -450,17 +450,10 @@ Hackathon contributions welcome!
 
 ---
 
-## 📜 License
-
-[Your License Here] — e.g., MIT, Apache 2.0
-
----
-
 ## 🏆 Hackathon Info
 
 - **Event:** Hack Sprint
 - **Track:** Blockchain / Creator Economy
-- **Built By:** Sodium
 - **Network:** Algorand (AVM)
 - **Smart Contract:** PuyaPy
 - **Frontend:** React 18 + TypeScript
